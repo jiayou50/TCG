@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tcg-engine"
+version = "0.1.0"
+description = "Core backend game engine for a Magic-like trading card game"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "TCG" }]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+addopts = "-q"
