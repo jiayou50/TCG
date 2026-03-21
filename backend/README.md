@@ -22,7 +22,7 @@ python -m unittest discover -s tests -p 'test_*.py'
 - Zone movement
 - A minimal legal-actions API
 - Card schema with mana cost and card type
-- Creature support with power/toughness stats
-- Sample creature card set for early development
+- Creature and land support (including the five basic lands)
+- Mana pool utilities and mana cost payment checks
 
 This is a foundation for implementing full Magic: The Gathering rules incrementally.

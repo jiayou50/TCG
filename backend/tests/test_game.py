@@ -9,18 +9,23 @@ from tcg_engine import (
     Card,
     CardType,
     GameState,
+    ManaColor,
     Phase,
     PlayerState,
     SAMPLE_CARDS,
     Zone,
     apply_action,
+    can_pay_mana_cost,
     move_card,
     next_phase,
+    play_land,
+    spend_mana_cost,
+    tap_land_for_mana,
 )
 
 
 def make_state() -> GameState:
-    p1 = PlayerState(id="p1", library=["c1", "c2"])
+    p1 = PlayerState(id="p1", library=["c1", "c2"], hand=["l1", "l2"])
     p2 = PlayerState(id="p2", library=["c3"])
     cards = {
         "c1": Card(
@@ -50,6 +55,22 @@ def make_state() -> GameState:
             power=1,
             toughness=1,
         ),
+        "l1": Card(
+            id="l1",
+            name="Forest",
+            owner_id="p1",
+            mana_cost="",
+            card_type=CardType.LAND,
+            produces_mana=(ManaColor.GREEN,),
+        ),
+        "l2": Card(
+            id="l2",
+            name="Mountain",
+            owner_id="p1",
+            mana_cost="",
+            card_type=CardType.LAND,
+            produces_mana=(ManaColor.RED,),
+        ),
     }
     return GameState(
         players={"p1": p1, "p2": p2},
@@ -65,7 +86,7 @@ class TestGame(unittest.TestCase):
         apply_action(state, Action(kind="draw", actor_id="p1"))
 
         self.assertEqual(state.players["p1"].library, ["c2"])
-        self.assertEqual(state.players["p1"].hand, ["c1"])
+        self.assertEqual(state.players["p1"].hand, ["l1", "l2", "c1"])
 
     def test_phase_advances(self) -> None:
         state = make_state()
@@ -80,7 +101,7 @@ class TestGame(unittest.TestCase):
 
         move_card(state, "p1", "c1", Zone.HAND, Zone.GRAVEYARD)
 
-        self.assertEqual(state.players["p1"].hand, [])
+        self.assertEqual(state.players["p1"].hand, ["l1", "l2"])
         self.assertEqual(state.players["p1"].graveyard, ["c1"])
 
     def test_creature_requires_power_and_toughness(self) -> None:
@@ -93,12 +114,60 @@ class TestGame(unittest.TestCase):
                 card_type=CardType.CREATURE,
             )
 
-    def test_sample_cards_are_creatures_with_stats(self) -> None:
-        self.assertGreaterEqual(len(SAMPLE_CARDS), 3)
-        for card in SAMPLE_CARDS.values():
-            self.assertEqual(card.card_type, CardType.CREATURE)
-            self.assertIsNotNone(card.power)
-            self.assertIsNotNone(card.toughness)
+    def test_land_requires_no_cost_and_mana_output(self) -> None:
+        with self.assertRaises(ValueError):
+            Card(
+                id="bad_land",
+                name="Bad Land",
+                owner_id="p1",
+                mana_cost="1",
+                card_type=CardType.LAND,
+                produces_mana=(ManaColor.GREEN,),
+            )
+
+        with self.assertRaises(ValueError):
+            Card(
+                id="bad_land_2",
+                name="Bad Land 2",
+                owner_id="p1",
+                mana_cost="",
+                card_type=CardType.LAND,
+            )
+
+    def test_sample_cards_include_five_basic_lands(self) -> None:
+        basics = {"c_plains", "c_island", "c_swamp", "c_mountain", "c_forest"}
+        self.assertTrue(basics.issubset(set(SAMPLE_CARDS.keys())))
+
+    def test_play_land_and_tap_for_mana(self) -> None:
+        state = make_state()
+        state.phase = Phase.PRECOMBAT_MAIN
+
+        play_land(state, "p1", "l1")
+        self.assertIn("l1", state.players["p1"].battlefield)
+        self.assertEqual(state.players["p1"].lands_played_this_turn, 1)
+
+        tap_land_for_mana(state, "p1", "l1")
+        self.assertEqual(state.players["p1"].mana_pool[ManaColor.GREEN], 1)
+        self.assertIn("l1", state.players["p1"].tapped_permanents)
+
+    def test_spend_mana_cost(self) -> None:
+        state = make_state()
+        player = state.players["p1"]
+        player.mana_pool[ManaColor.GREEN] = 1
+        player.mana_pool[ManaColor.RED] = 1
+
+        self.assertTrue(can_pay_mana_cost(player, "1G"))
+        spend_mana_cost(player, "1G")
+        self.assertEqual(player.mana_pool[ManaColor.GREEN], 0)
+        self.assertEqual(sum(player.mana_pool.values()), 0)
+
+    def test_can_only_play_one_land_per_turn(self) -> None:
+        state = make_state()
+        state.phase = Phase.PRECOMBAT_MAIN
+
+        play_land(state, "p1", "l1")
+        with self.assertRaises(ValueError):
+            play_land(state, "p1", "l2")
 
 
 if __name__ == "__main__":
