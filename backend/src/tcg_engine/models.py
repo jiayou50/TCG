@@ -23,11 +23,24 @@ class Phase(str, Enum):
     ENDING = "ending"
 
 
+class CardType(str, Enum):
+    CREATURE = "creature"
+
+
 @dataclass(slots=True, frozen=True)
 class Card:
     id: str
     name: str
     owner_id: str
+    mana_cost: str
+    card_type: CardType
+    power: int | None = None
+    toughness: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.card_type == CardType.CREATURE:
+            if self.power is None or self.toughness is None:
+                raise ValueError("Creature cards must have power and toughness")
 
 
 @dataclass(slots=True)
