@@ -1,0 +1,9 @@
+{
+  "name": "tcg-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Web frontend scaffold for TCG project",
+  "scripts": {
+    "start": "python -m http.server 4173"
+  }
+}
