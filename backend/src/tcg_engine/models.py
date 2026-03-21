@@ -25,6 +25,16 @@ class Phase(str, Enum):
 
 class CardType(str, Enum):
     CREATURE = "creature"
+    LAND = "land"
+
+
+class ManaColor(str, Enum):
+    WHITE = "W"
+    BLUE = "U"
+    BLACK = "B"
+    RED = "R"
+    GREEN = "G"
+    COLORLESS = "C"
 
 
 @dataclass(slots=True, frozen=True)
@@ -36,11 +46,17 @@ class Card:
     card_type: CardType
     power: int | None = None
     toughness: int | None = None
+    produces_mana: tuple[ManaColor, ...] = ()
 
     def __post_init__(self) -> None:
         if self.card_type == CardType.CREATURE:
             if self.power is None or self.toughness is None:
                 raise ValueError("Creature cards must have power and toughness")
+        if self.card_type == CardType.LAND:
+            if self.mana_cost:
+                raise ValueError("Land cards must not have a mana cost")
+            if not self.produces_mana:
+                raise ValueError("Land cards must produce at least one mana color")
 
 
 @dataclass(slots=True)
@@ -51,6 +67,11 @@ class PlayerState:
     hand: list[str] = field(default_factory=list)
     battlefield: list[str] = field(default_factory=list)
     graveyard: list[str] = field(default_factory=list)
+    tapped_permanents: set[str] = field(default_factory=set)
+    lands_played_this_turn: int = 0
+    mana_pool: dict[ManaColor, int] = field(
+        default_factory=lambda: {color: 0 for color in ManaColor}
+    )
 
 
 @dataclass(slots=True)
