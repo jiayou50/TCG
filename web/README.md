@@ -29,7 +29,7 @@ By default, Vite is configured to bind to `0.0.0.0`, so the app can be opened fr
 Example URL:
 
 ```text
-http://192.168.1.25:5173
+http://192.168.86.250:5173
 ```
 
 If needed, allow inbound connections on port `5173` in your firewall.
