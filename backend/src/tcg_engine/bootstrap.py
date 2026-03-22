@@ -2,42 +2,56 @@
 
 from __future__ import annotations
 
+import random
+
 from .models import Card, CardType, GameState, ManaColor, PlayerState
 
 
 def create_starting_game_state() -> GameState:
-    """Create a static game state suitable for first end-to-end integration."""
+    """Create a randomized game state suitable for first end-to-end integration."""
+    p1_deck = [
+        "p1_c1",
+        "p1_c2",
+        "p1_c3",
+        "p1_c4",
+        "p1_c5",
+        "p1_c6",
+        "p1_c7",
+        "p1_c8",
+        "p1_l1",
+        "p1_l2",
+        "p1_l3",
+        "p1_l4",
+        "p1_l5",
+    ]
+    p2_deck = [
+        "p2_c1",
+        "p2_c2",
+        "p2_c3",
+        "p2_c4",
+        "p2_c5",
+        "p2_c6",
+        "p2_c7",
+        "p2_c8",
+        "p2_l1",
+        "p2_l2",
+        "p2_l3",
+        "p2_l4",
+        "p2_l5",
+    ]
+
+    random.shuffle(p1_deck)
+    random.shuffle(p2_deck)
+
     p1 = PlayerState(
         id="p1",
-        library=[
-            "p1_c1",
-            "p1_c2",
-            "p1_c3",
-            "p1_c4",
-            "p1_c5",
-            "p1_c6",
-            "p1_l1",
-            "p1_l2",
-            "p1_l3",
-            "p1_l4",
-        ],
-        hand=["p1_c7", "p1_c8", "p1_l5"],
+        library=p1_deck[3:],
+        hand=p1_deck[:3],
     )
     p2 = PlayerState(
         id="p2",
-        library=[
-            "p2_c1",
-            "p2_c2",
-            "p2_c3",
-            "p2_c4",
-            "p2_c5",
-            "p2_c6",
-            "p2_l1",
-            "p2_l2",
-            "p2_l3",
-            "p2_l4",
-        ],
-        hand=["p2_c7", "p2_c8", "p2_l5"],
+        library=p2_deck[3:],
+        hand=p2_deck[:3],
     )
 
     cards = {
@@ -273,5 +287,5 @@ def create_starting_game_state() -> GameState:
         active_player_id="p1",
         priority_player_id="p1",
     )
-    state.event_log.append("Game initialized with static starting state")
+    state.event_log.append("Game initialized with shuffled starting libraries and 3-card hands")
     return state
