@@ -11,7 +11,10 @@ npm install
 
 ## Development
 
+Start the frontend dev server:
+
 ```bash
+cd web
 npm run dev
 ```
 

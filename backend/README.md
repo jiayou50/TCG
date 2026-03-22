@@ -10,6 +10,10 @@ This package contains the core rules engine and game state for a Magic-like TCG.
 
 ## Quick start
 
+This package is currently a Python rules engine and does **not** include an HTTP server yet.
+
+Run tests to verify backend behavior:
+
 ```bash
 cd backend
 python -m unittest discover -s tests -p 'test_*.py'
