@@ -355,7 +355,7 @@ def apply_action(state: GameState, action: Action) -> None:
 
 
 def get_legal_actions(state: GameState, player_id: str) -> list[Action]:
-    actions: list[Action] = []
+    actions: list[Action] = [Action(kind="start_new_game", actor_id=player_id)]
     if state.phase == Phase.BEGINNING:
         if player_id == state.active_player_id and not state.has_drawn_this_turn:
             actions.append(Action(kind="draw", actor_id=player_id))

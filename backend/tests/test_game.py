@@ -378,6 +378,7 @@ class TestGame(unittest.TestCase):
         state = make_state()
         legal_before = {action.kind for action in get_legal_actions(state, "p1")}
         self.assertIn("draw", legal_before)
+        self.assertIn("start_new_game", legal_before)
         self.assertNotIn("pass_priority", legal_before)
 
         apply_action(state, Action(kind="draw", actor_id="p1"))
@@ -422,6 +423,18 @@ class TestGame(unittest.TestCase):
 
         legal_actions = get_legal_actions(state, "p1")
         self.assertTrue(any(action.kind == "tap_all_lands_for_mana" for action in legal_actions))
+
+    def test_start_new_game_action_is_available_for_any_player_any_time(self) -> None:
+        state = make_state()
+
+        p1_beginning_actions = get_legal_actions(state, "p1")
+        p2_beginning_actions = get_legal_actions(state, "p2")
+        self.assertTrue(any(action.kind == "start_new_game" for action in p1_beginning_actions))
+        self.assertTrue(any(action.kind == "start_new_game" for action in p2_beginning_actions))
+
+        state.phase = Phase.COMBAT
+        p2_combat_actions = get_legal_actions(state, "p2")
+        self.assertTrue(any(action.kind == "start_new_game" for action in p2_combat_actions))
 
 
 if __name__ == "__main__":
