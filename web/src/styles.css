@@ -23,16 +23,13 @@ body {
   box-shadow: 0 8px 24px rgb(15 23 42 / 12%);
 }
 
-button {
-  border: 0;
+.game-state-text {
+  margin-top: 1rem;
+  padding: 1rem;
   border-radius: 8px;
-  padding: 0.6rem 1rem;
-  background: #2563eb;
-  color: white;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-button:hover {
-  background: #1d4ed8;
+  background: #111827;
+  color: #e5e7eb;
+  max-height: 420px;
+  overflow: auto;
+  font-size: 0.85rem;
 }

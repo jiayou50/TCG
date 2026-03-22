@@ -15,6 +15,18 @@ cd backend
 python -m unittest discover -s tests -p 'test_*.py'
 ```
 
+## Run API server (FastAPI)
+
+```bash
+cd backend
+uvicorn tcg_engine.api:app --app-dir src --reload
+```
+
+Available endpoints:
+
+- `GET /health`
+- `GET /game-state` (returns a static default starting game state)
+
 ## Scope of this initial scaffold
 
 - Basic game state model

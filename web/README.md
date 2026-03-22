@@ -15,6 +15,16 @@ npm install
 npm run dev
 ```
 
+This frontend fetches `GET /api/game-state` on load.
+The Vite dev server proxies `/api/*` requests to `http://127.0.0.1:8000/*`.
+
+Run the backend API server first:
+
+```bash
+cd ../backend
+uvicorn tcg_engine.api:app --app-dir src --reload
+```
+
 ## Production build
 
 ```bash
@@ -22,14 +32,6 @@ npm run build
 npm run preview
 ```
 
-## Backend server recommendation
+## Backend server
 
-For local static-file serving, Vite's dev server is enough.
-
-For a unified backend that serves APIs + frontend in one Python service, prefer **Django + Django REST Framework** when you need:
-
-- built-in auth/admin/ORM and relational models
-- server-rendered admin workflows
-- one deployable app for both API and static assets
-
-If you only need a lightweight JSON API for the game engine, **FastAPI** will usually be simpler and faster to iterate with than Django.
+The backend now uses FastAPI for a lightweight JSON API.
