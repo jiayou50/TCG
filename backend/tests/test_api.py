@@ -94,18 +94,18 @@ class TestApi(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["playerId"], "p1")
-        self.assertTrue(any(action["kind"] == "pass_priority" for action in payload["actions"]))
+        self.assertEqual([action["kind"] for action in payload["actions"]], ["draw"])
 
     def test_apply_action_advances_state(self) -> None:
-        action_payload = {"kind": "pass_priority", "actorId": "p1"}
+        action_payload = {"kind": "draw", "actorId": "p1"}
         response = self.client.post("/actions", json=action_payload)
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertEqual(payload["appliedAction"]["kind"], "pass_priority")
+        self.assertEqual(payload["appliedAction"]["kind"], "draw")
         self.assertEqual(payload["gameState"]["phase"], "precombat_main")
 
     def test_pass_turn_skips_to_next_players_beginning(self) -> None:
-        self.client.post("/actions", json={"kind": "pass_priority", "actorId": "p1"})
+        self.client.post("/actions", json={"kind": "draw", "actorId": "p1"})
 
         response = self.client.post("/actions", json={"kind": "pass_turn", "actorId": "p1"})
         self.assertEqual(response.status_code, 200)
