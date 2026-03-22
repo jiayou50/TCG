@@ -86,3 +86,4 @@ class GameState:
     declared_attackers: dict[str, str] = field(default_factory=dict)
     declared_blocks: dict[str, str] = field(default_factory=dict)
     event_log: list[str] = field(default_factory=list)
+    has_drawn_this_turn: bool = False
