@@ -60,6 +60,30 @@ const formatActionLabel = (action: Action, cards: Record<string, CardState>): st
   return readableKind;
 };
 
+const formatCardNames = (cardIds: string[], cards: Record<string, CardState>): string => {
+  if (cardIds.length === 0) {
+    return "None";
+  }
+
+  return cardIds
+    .map((cardId) => {
+      const card = cards[cardId];
+      if (!card) {
+        return cardId;
+      }
+
+      const isCreature = card.cardType.toLowerCase() === "creature";
+      if (!isCreature) {
+        return card.name;
+      }
+
+      const powerToughness =
+        card.power !== null && card.toughness !== null ? `${card.power}/${card.toughness}` : "?/?";
+      return `${card.name} (${card.manaCost}) (${powerToughness})`;
+    })
+    .join(", ");
+};
+
 function App() {
   const [status, setStatus] = useState("Loading game state from backend...");
   const [gameState, setGameState] = useState<GameStateResponse | null>(null);
@@ -163,6 +187,41 @@ function App() {
           </div>
         ) : (
           <p>No legal actions available.</p>
+        )}
+      </section>
+
+      <section className="game-summary-panel" aria-live="polite">
+        <h2>Game Summary</h2>
+        {gameState ? (
+          <>
+            <p className="turn-phase">
+              <strong>Turn:</strong> {gameState.turnNumber} · <strong>Phase:</strong> {gameState.phase}
+            </p>
+            <div className="players-grid">
+              {Object.entries(gameState.players).map(([playerId, player]) => (
+                <article className="player-summary" key={playerId}>
+                  <h3>{playerId}</h3>
+                  <p>
+                    <strong>Life:</strong> {player.lifeTotal}
+                  </p>
+                  <p>
+                    <strong>Library:</strong> {player.library.length} cards
+                  </p>
+                  <p>
+                    <strong>Graveyard:</strong> {player.graveyard.length} cards
+                  </p>
+                  <p>
+                    <strong>Hand:</strong> {formatCardNames(player.hand, gameState.cards)}
+                  </p>
+                  <p>
+                    <strong>Battlefield:</strong> {formatCardNames(player.battlefield, gameState.cards)}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p>No game summary available.</p>
         )}
       </section>
 
