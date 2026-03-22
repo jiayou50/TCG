@@ -61,35 +61,54 @@ const formatActionLabel = (action: Action, cards: Record<string, CardState>): st
   return readableKind;
 };
 
-const formatCardNames = (
-  cardIds: string[],
+const formatCardName = (
+  cardId: string,
   cards: Record<string, CardState>,
   tappedCardIds: Set<string> = new Set(),
   summoningSickCardIds: Set<string> = new Set(),
 ): string => {
-  if (cardIds.length === 0) {
-    return "None";
+  const card = cards[cardId];
+  const tappedSuffix = tappedCardIds.has(cardId) ? " [tapped]" : "";
+  const summoningSickSuffix = summoningSickCardIds.has(cardId) ? " [summoning sickness]" : "";
+  if (!card) {
+    return `${cardId}${tappedSuffix}${summoningSickSuffix}`;
   }
 
-  return cardIds
-    .map((cardId) => {
-      const card = cards[cardId];
-      const tappedSuffix = tappedCardIds.has(cardId) ? " [tapped]" : "";
-      const summoningSickSuffix = summoningSickCardIds.has(cardId) ? " [summoning sickness]" : "";
-      if (!card) {
-        return `${cardId}${tappedSuffix}${summoningSickSuffix}`;
-      }
+  const isCreature = card.cardType.toLowerCase() === "creature";
+  if (!isCreature) {
+    return `${card.name}${tappedSuffix}`;
+  }
 
-      const isCreature = card.cardType.toLowerCase() === "creature";
-      if (!isCreature) {
-        return `${card.name}${tappedSuffix}`;
-      }
+  const powerToughness =
+    card.power !== null && card.toughness !== null ? `${card.power}/${card.toughness}` : "?/?";
+  return `${card.name} (${card.manaCost}) (${powerToughness})${tappedSuffix}${summoningSickSuffix}`;
+};
 
-      const powerToughness =
-        card.power !== null && card.toughness !== null ? `${card.power}/${card.toughness}` : "?/?";
-      return `${card.name} (${card.manaCost}) (${powerToughness})${tappedSuffix}${summoningSickSuffix}`;
-    })
-    .join(", ");
+const getSortedCardIds = (
+  cardIds: string[],
+  cards: Record<string, CardState>,
+): string[] => {
+  const cardTypeRank = (cardId: string): number => {
+    const cardType = cards[cardId]?.cardType.toLowerCase();
+    if (cardType === "creature") {
+      return 0;
+    }
+    if (cardType === "land") {
+      return 1;
+    }
+    return 2;
+  };
+
+  return [...cardIds].sort((cardIdA, cardIdB) => {
+    const rankDiff = cardTypeRank(cardIdA) - cardTypeRank(cardIdB);
+    if (rankDiff !== 0) {
+      return rankDiff;
+    }
+
+    const cardNameA = cards[cardIdA]?.name ?? cardIdA;
+    const cardNameB = cards[cardIdB]?.name ?? cardIdB;
+    return cardNameA.localeCompare(cardNameB);
+  });
 };
 
 function App() {
@@ -206,32 +225,58 @@ function App() {
               <strong>Turn:</strong> {gameState.turnNumber} · <strong>Phase:</strong> {gameState.phase}
             </p>
             <div className="players-grid">
-              {Object.entries(gameState.players).map(([playerId, player]) => (
-                <article className="player-summary" key={playerId}>
-                  <h3>{playerId}</h3>
-                  <p>
-                    <strong>Life:</strong> {player.lifeTotal}
-                  </p>
-                  <p>
-                    <strong>Library:</strong> {player.library.length} cards
-                  </p>
-                  <p>
-                    <strong>Graveyard:</strong> {player.graveyard.length} cards
-                  </p>
-                  <p>
-                    <strong>Hand:</strong> {formatCardNames(player.hand, gameState.cards)}
-                  </p>
-                  <p>
-                    <strong>Battlefield:</strong>{" "}
-                    {formatCardNames(
-                      player.battlefield,
-                      gameState.cards,
-                      new Set(player.tappedPermanents),
-                      new Set(player.summoningSickCreatures),
-                    )}
-                  </p>
-                </article>
-              ))}
+              {Object.entries(gameState.players).map(([playerId, player]) => {
+                const tappedPermanents = new Set(player.tappedPermanents);
+                const summoningSickCreatures = new Set(player.summoningSickCreatures);
+
+                return (
+                  <article className="player-summary" key={playerId}>
+                    <h3>{playerId}</h3>
+                    <p>
+                      <strong>Life:</strong> {player.lifeTotal}
+                    </p>
+                    <p>
+                      <strong>Library:</strong> {player.library.length} cards
+                    </p>
+                    <p>
+                      <strong>Graveyard:</strong> {player.graveyard.length} cards
+                    </p>
+                    <div className="card-zone">
+                      <strong>Hand:</strong>
+                      {player.hand.length > 0 ? (
+                        <ul>
+                          {getSortedCardIds(player.hand, gameState.cards).map((cardId) => (
+                            <li key={`hand-${playerId}-${cardId}`}>
+                              {formatCardName(cardId, gameState.cards)}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p>None</p>
+                      )}
+                    </div>
+                    <div className="card-zone">
+                      <strong>Battlefield:</strong>
+                      {player.battlefield.length > 0 ? (
+                        <ul>
+                          {getSortedCardIds(player.battlefield, gameState.cards).map((cardId) => (
+                            <li key={`battlefield-${playerId}-${cardId}`}>
+                              {formatCardName(
+                                cardId,
+                                gameState.cards,
+                                tappedPermanents,
+                                summoningSickCreatures,
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p>None</p>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           </>
         ) : (
