@@ -60,7 +60,11 @@ const formatActionLabel = (action: Action, cards: Record<string, CardState>): st
   return readableKind;
 };
 
-const formatCardNames = (cardIds: string[], cards: Record<string, CardState>): string => {
+const formatCardNames = (
+  cardIds: string[],
+  cards: Record<string, CardState>,
+  tappedCardIds: Set<string> = new Set(),
+): string => {
   if (cardIds.length === 0) {
     return "None";
   }
@@ -68,18 +72,19 @@ const formatCardNames = (cardIds: string[], cards: Record<string, CardState>): s
   return cardIds
     .map((cardId) => {
       const card = cards[cardId];
+      const tappedSuffix = tappedCardIds.has(cardId) ? " [tapped]" : "";
       if (!card) {
-        return cardId;
+        return `${cardId}${tappedSuffix}`;
       }
 
       const isCreature = card.cardType.toLowerCase() === "creature";
       if (!isCreature) {
-        return card.name;
+        return `${card.name}${tappedSuffix}`;
       }
 
       const powerToughness =
         card.power !== null && card.toughness !== null ? `${card.power}/${card.toughness}` : "?/?";
-      return `${card.name} (${card.manaCost}) (${powerToughness})`;
+      return `${card.name} (${card.manaCost}) (${powerToughness})${tappedSuffix}`;
     })
     .join(", ");
 };
@@ -214,7 +219,12 @@ function App() {
                     <strong>Hand:</strong> {formatCardNames(player.hand, gameState.cards)}
                   </p>
                   <p>
-                    <strong>Battlefield:</strong> {formatCardNames(player.battlefield, gameState.cards)}
+                    <strong>Battlefield:</strong>{" "}
+                    {formatCardNames(
+                      player.battlefield,
+                      gameState.cards,
+                      new Set(player.tappedPermanents),
+                    )}
                   </p>
                 </article>
               ))}
