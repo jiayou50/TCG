@@ -88,6 +88,7 @@ def _serialize_state(state: GameState) -> dict[str, object]:
                 "battlefield": player.battlefield,
                 "graveyard": player.graveyard,
                 "tappedPermanents": sorted(player.tapped_permanents),
+                "summoningSickCreatures": sorted(player.summoning_sick_creatures),
                 "manaPool": {color.value: amount for color, amount in player.mana_pool.items()},
             }
             for player_id, player in state.players.items()

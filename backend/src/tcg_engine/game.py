@@ -47,6 +47,9 @@ def move_card(state: GameState, player_id: str, card_id: str, from_zone: Zone, t
     to_list.append(card_id)
     if to_zone != Zone.BATTLEFIELD:
         player.tapped_permanents.discard(card_id)
+        player.summoning_sick_creatures.discard(card_id)
+    elif state.cards[card_id].card_type == CardType.CREATURE:
+        player.summoning_sick_creatures.add(card_id)
     state.event_log.append(f"{card_id}: {from_zone.value} -> {to_zone.value}")
 
 
@@ -116,6 +119,8 @@ def attack_with_creature(state: GameState, player_id: str, card_id: str) -> None
         raise ValueError("Creature must be on the battlefield")
     if card_id in player.tapped_permanents:
         raise ValueError("Creature is tapped")
+    if card_id in player.summoning_sick_creatures:
+        raise ValueError("Creature has summoning sickness")
 
     card = state.cards[card_id]
     if card.card_type != CardType.CREATURE:
@@ -356,7 +361,11 @@ def get_legal_actions(state: GameState, player_id: str) -> list[Action]:
         if not state.declared_attackers and player_id == attacking_player_id:
             for card_id in player.battlefield:
                 card = state.cards[card_id]
-                if card.card_type == CardType.CREATURE and card_id not in player.tapped_permanents:
+                if (
+                    card.card_type == CardType.CREATURE
+                    and card_id not in player.tapped_permanents
+                    and card_id not in player.summoning_sick_creatures
+                ):
                     actions.append(Action(kind="attack_with_creature", actor_id=player_id, card_id=card_id))
         elif state.declared_attackers and player_id != attacking_player_id:
             for card_id in player.battlefield:
@@ -399,6 +408,7 @@ def _next_turn(state: GameState) -> None:
 
     active_player = state.players[next_player]
     active_player.tapped_permanents.clear()
+    active_player.summoning_sick_creatures.clear()
     active_player.lands_played_this_turn = 0
 
     state.event_log.append(f"turn -> {state.turn_number}, active -> {next_player}")

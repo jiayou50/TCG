@@ -33,6 +33,8 @@ class TestApi(unittest.TestCase):
         self.assertEqual(len(payload["players"]["p2"]["library"]), 10)
         self.assertEqual(len(payload["players"]["p1"]["hand"]), 3)
         self.assertEqual(len(payload["players"]["p2"]["hand"]), 3)
+        self.assertEqual(payload["players"]["p1"]["summoningSickCreatures"], [])
+        self.assertEqual(payload["players"]["p2"]["summoningSickCreatures"], [])
 
         def _count_types(card_ids: list[str]) -> tuple[int, int]:
             lands = 0
