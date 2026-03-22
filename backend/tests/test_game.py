@@ -204,7 +204,7 @@ class TestGame(unittest.TestCase):
         apply_action(state, Action(kind="attack_with_creature", actor_id="p1", card_id="c1"))
         self.assertIn("c1", p1.tapped_permanents)
         self.assertEqual(state.declared_attackers["c1"], "p2")
-        self.assertEqual(state.active_player_id, "p2")
+        self.assertEqual(state.active_player_id, "p1")
 
         apply_action(
             state,
@@ -249,17 +249,17 @@ class TestGame(unittest.TestCase):
         apply_action(state, Action(kind="attack_with_creature", actor_id="p1", card_id="c1"))
         self.assertEqual(state.declared_attackers["c1"], "p2")
 
-    def test_combat_pass_priority_returns_control_to_attacker(self) -> None:
+    def test_combat_pass_priority_moves_from_attacker_to_defender(self) -> None:
         state = make_state()
         p1 = state.players["p1"]
         p1.battlefield.append("c1")
         state.phase = Phase.COMBAT
 
         apply_action(state, Action(kind="attack_with_creature", actor_id="p1", card_id="c1"))
-        self.assertEqual(state.active_player_id, "p2")
-
-        apply_action(state, Action(kind="pass_priority", actor_id="p2"))
         self.assertEqual(state.active_player_id, "p1")
+
+        apply_action(state, Action(kind="pass_priority", actor_id="p1"))
+        self.assertEqual(state.active_player_id, "p2")
         self.assertEqual(state.phase, Phase.COMBAT)
 
     def test_unblocked_attacker_deals_damage_on_combat_end(self) -> None:
@@ -270,6 +270,7 @@ class TestGame(unittest.TestCase):
         state.phase = Phase.COMBAT
 
         apply_action(state, Action(kind="attack_with_creature", actor_id="p1", card_id="c1"))
+        apply_action(state, Action(kind="pass_priority", actor_id="p1"))
         apply_action(state, Action(kind="pass_priority", actor_id="p2"))
         next_phase(state)
 
@@ -286,7 +287,7 @@ class TestGame(unittest.TestCase):
         state.phase = Phase.COMBAT
 
         apply_action(state, Action(kind="attack_with_creature", actor_id="p1", card_id="c1"))
-        apply_action(state, Action(kind="pass_priority", actor_id="p2"))
+        apply_action(state, Action(kind="pass_priority", actor_id="p1"))
         apply_action(
             state,
             Action(kind="block_with_creature", actor_id="p2", card_id="c3", target_id="c1"),
@@ -316,10 +317,34 @@ class TestGame(unittest.TestCase):
         p2.battlefield.append("c3")
         state.phase = Phase.COMBAT
         apply_action(state, Action(kind="attack_with_creature", actor_id="p1", card_id="c1"))
-        apply_action(state, Action(kind="pass_priority", actor_id="p2"))
+        apply_action(state, Action(kind="pass_priority", actor_id="p1"))
 
         legal_defender = get_legal_actions(state, "p2")
         self.assertTrue(any(action.kind == "block_with_creature" for action in legal_defender))
+
+    def test_attacker_can_declare_multiple_attackers_before_passing_priority(self) -> None:
+        state = make_state()
+        p1 = state.players["p1"]
+        p1.battlefield.extend(["c1", "c2"])
+        p1.summoning_sick_creatures.clear()
+        state.phase = Phase.COMBAT
+
+        apply_action(state, Action(kind="attack_with_creature", actor_id="p1", card_id="c1"))
+
+        legal_attacker_actions = get_legal_actions(state, "p1")
+        self.assertTrue(
+            any(
+                action.kind == "attack_with_creature" and action.card_id == "c2"
+                for action in legal_attacker_actions
+            )
+        )
+
+        apply_action(state, Action(kind="attack_with_creature", actor_id="p1", card_id="c2"))
+
+        self.assertEqual(state.active_player_id, "p1")
+        self.assertEqual(state.priority_player_id, "p1")
+        self.assertEqual(state.declared_attackers["c1"], "p2")
+        self.assertEqual(state.declared_attackers["c2"], "p2")
 
     def test_draw_legal_action_only_once_during_beginning_phase(self) -> None:
         state = make_state()

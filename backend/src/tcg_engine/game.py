@@ -129,10 +129,7 @@ def attack_with_creature(state: GameState, player_id: str, card_id: str) -> None
     player.tapped_permanents.add(card_id)
     defending_player_id = next(pid for pid in state.players if pid != player_id)
     state.declared_attackers[card_id] = defending_player_id
-    state.active_player_id = defending_player_id
-    state.priority_player_id = defending_player_id
     state.event_log.append(f"{player_id} attacked with {card_id}")
-    state.event_log.append(f"active -> {defending_player_id} (declare blockers)")
 
 
 def block_with_creature(state: GameState, player_id: str, card_id: str, attacker_id: str) -> None:
@@ -290,16 +287,18 @@ def apply_action(state: GameState, action: Action) -> None:
         return
     if action.kind == "pass_priority":
         attacking_player_id = _attacking_player_id(state)
-        if (
-            state.phase == Phase.COMBAT
-            and attacking_player_id is not None
-            and state.active_player_id != attacking_player_id
-            and action.actor_id == state.active_player_id
-        ):
-            state.active_player_id = attacking_player_id
-            state.priority_player_id = attacking_player_id
-            state.event_log.append(f"priority passed to {attacking_player_id}")
-            return
+        if state.phase == Phase.COMBAT and attacking_player_id is not None:
+            defending_player_id = next(pid for pid in state.players if pid != attacking_player_id)
+            if action.actor_id == attacking_player_id and state.active_player_id == attacking_player_id:
+                state.active_player_id = defending_player_id
+                state.priority_player_id = defending_player_id
+                state.event_log.append(f"priority passed to {defending_player_id} (declare blockers)")
+                return
+            if action.actor_id == defending_player_id and state.active_player_id == defending_player_id:
+                state.active_player_id = attacking_player_id
+                state.priority_player_id = attacking_player_id
+                state.event_log.append(f"priority passed to {attacking_player_id}")
+                return
         next_phase(state)
         return
     if action.kind == "next_phase":
@@ -358,16 +357,17 @@ def get_legal_actions(state: GameState, player_id: str) -> list[Action]:
 
     if state.phase == Phase.COMBAT:
         attacking_player_id = _attacking_player_id(state) or state.active_player_id
-        if not state.declared_attackers and player_id == attacking_player_id:
+        if player_id == attacking_player_id:
             for card_id in player.battlefield:
                 card = state.cards[card_id]
                 if (
                     card.card_type == CardType.CREATURE
+                    and card_id not in state.declared_attackers
                     and card_id not in player.tapped_permanents
                     and card_id not in player.summoning_sick_creatures
                 ):
                     actions.append(Action(kind="attack_with_creature", actor_id=player_id, card_id=card_id))
-        elif state.declared_attackers and player_id != attacking_player_id:
+        elif state.declared_attackers:
             for card_id in player.battlefield:
                 card = state.cards[card_id]
                 if card.card_type != CardType.CREATURE or card_id in player.tapped_permanents:
