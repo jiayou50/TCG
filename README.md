@@ -13,6 +13,10 @@ This split keeps game rules deterministic and testable in Python while allowing 
 
 ### Backend
 
+The backend currently provides the game engine library only (no HTTP API server yet).
+
+To validate and run backend code locally:
+
 ```bash
 cd backend
 python -m unittest discover -s tests -p 'test_*.py'
@@ -20,11 +24,15 @@ python -m unittest discover -s tests -p 'test_*.py'
 
 ### Frontend
 
+Start the frontend development server:
+
 ```bash
 cd web
 npm install
 npm run dev
 ```
+
+The Vite dev server will print the local URL (typically `http://localhost:5173`).
 
 ## Current backend capabilities
 

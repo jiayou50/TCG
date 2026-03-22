@@ -11,9 +11,14 @@ npm install
 
 ## Development
 
+Start the frontend dev server:
+
 ```bash
+cd web
 npm run dev
 ```
+
+Vite will display the local URL in the terminal (typically `http://localhost:5173`).
 
 ## Production build
 
