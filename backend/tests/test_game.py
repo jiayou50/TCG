@@ -16,8 +16,10 @@ from tcg_engine import (
     Zone,
     apply_action,
     can_pay_mana_cost,
+    get_legal_actions,
     move_card,
     next_phase,
+    play_card,
     play_land,
     spend_mana_cost,
     tap_land_for_mana,
@@ -168,6 +170,59 @@ class TestGame(unittest.TestCase):
         play_land(state, "p1", "l1")
         with self.assertRaises(ValueError):
             play_land(state, "p1", "l2")
+
+    def test_play_card_spends_mana_and_moves_to_battlefield(self) -> None:
+        state = make_state()
+        state.phase = Phase.PRECOMBAT_MAIN
+        player = state.players["p1"]
+        player.hand.append("c1")
+        player.mana_pool[ManaColor.GREEN] = 1
+        player.mana_pool[ManaColor.RED] = 1
+
+        play_card(state, "p1", "c1")
+
+        self.assertIn("c1", player.battlefield)
+        self.assertNotIn("c1", player.hand)
+        self.assertEqual(sum(player.mana_pool.values()), 0)
+
+    def test_combat_actions_attack_and_block(self) -> None:
+        state = make_state()
+        p1 = state.players["p1"]
+        p2 = state.players["p2"]
+        p1.battlefield.append("c1")
+        p2.battlefield.append("c3")
+        state.phase = Phase.COMBAT
+
+        apply_action(state, Action(kind="attack_with_creature", actor_id="p1", card_id="c1"))
+        self.assertIn("c1", p1.tapped_permanents)
+        self.assertEqual(state.declared_attackers["c1"], "p2")
+
+        apply_action(
+            state,
+            Action(kind="block_with_creature", actor_id="p2", card_id="c3", target_id="c1"),
+        )
+        self.assertEqual(state.declared_blocks["c3"], "c1")
+
+    def test_legal_actions_include_requested_player_actions(self) -> None:
+        state = make_state()
+        p1 = state.players["p1"]
+        p2 = state.players["p2"]
+        state.phase = Phase.PRECOMBAT_MAIN
+        p1.hand.append("c1")
+        p1.battlefield.append("l1")
+        p1.mana_pool[ManaColor.GREEN] = 1
+        p1.mana_pool[ManaColor.RED] = 1
+
+        legal_main = {action.kind for action in get_legal_actions(state, "p1")}
+        self.assertTrue({"play_land", "play_card", "tap_land_for_mana", "pass_priority"}.issubset(legal_main))
+
+        p1.battlefield.append("c1")
+        p2.battlefield.append("c3")
+        state.phase = Phase.COMBAT
+        apply_action(state, Action(kind="attack_with_creature", actor_id="p1", card_id="c1"))
+
+        legal_defender = get_legal_actions(state, "p2")
+        self.assertTrue(any(action.kind == "block_with_creature" for action in legal_defender))
 
 
 if __name__ == "__main__":

@@ -29,7 +29,10 @@ uvicorn tcg_engine.api:app --app-dir src --reload
 Available endpoints:
 
 - `GET /health`
-- `GET /game-state` (returns a static default starting game state)
+- `GET /game-state`
+- `GET /players/{player_id}/legal-actions`
+- `POST /actions`
+- `POST /reset` (helper endpoint for resetting to initial state)
 
 ## Scope of this initial scaffold
 
