@@ -44,6 +44,8 @@ def legal_actions(player_id: str) -> dict[str, object]:
 
 @app.post("/actions")
 def perform_action(payload: ActionRequest) -> dict[str, object]:
+    global _STATE
+
     if payload.actorId not in _STATE.players:
         raise HTTPException(status_code=404, detail=f"Unknown player: {payload.actorId}")
 
@@ -53,6 +55,14 @@ def perform_action(payload: ActionRequest) -> dict[str, object]:
         card_id=payload.cardId,
         target_id=payload.targetId,
     )
+
+    if action.kind == "start_new_game":
+        _STATE = create_starting_game_state()
+        return {
+            "appliedAction": _serialize_action(action),
+            "gameState": _serialize_state(_STATE),
+        }
+
     try:
         apply_action(_STATE, action)
     except ValueError as exc:

@@ -94,7 +94,7 @@ class TestApi(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["playerId"], "p1")
-        self.assertEqual([action["kind"] for action in payload["actions"]], ["draw"])
+        self.assertEqual([action["kind"] for action in payload["actions"]], ["start_new_game", "draw"])
 
     def test_apply_action_advances_state(self) -> None:
         action_payload = {"kind": "draw", "actorId": "p1"}
@@ -114,6 +114,18 @@ class TestApi(unittest.TestCase):
         self.assertEqual(payload["gameState"]["phase"], "beginning")
         self.assertEqual(payload["gameState"]["activePlayerId"], "p2")
         self.assertEqual(payload["gameState"]["turnNumber"], 2)
+
+    def test_start_new_game_action_resets_state(self) -> None:
+        self.client.post("/actions", json={"kind": "draw", "actorId": "p1"})
+
+        response = self.client.post("/actions", json={"kind": "start_new_game", "actorId": "p2"})
+        self.assertEqual(response.status_code, 200)
+
+        payload = response.json()
+        self.assertEqual(payload["appliedAction"]["kind"], "start_new_game")
+        self.assertEqual(payload["gameState"]["turnNumber"], 1)
+        self.assertEqual(payload["gameState"]["phase"], "beginning")
+        self.assertEqual(payload["gameState"]["activePlayerId"], "p1")
 
 
 if __name__ == "__main__":
