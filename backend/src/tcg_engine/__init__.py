@@ -14,6 +14,7 @@ from .game import (
     spend_mana_cost,
     tap_land_for_mana,
 )
+from .bootstrap import create_starting_game_state
 from .models import Card, CardType, GameState, ManaColor, Phase, PlayerState, Zone
 from .rules import is_legal_action
 from .sample_cards import SAMPLE_CARDS
@@ -32,6 +33,7 @@ __all__ = [
     "apply_action",
     "can_pay_mana_cost",
     "clear_mana_pool",
+    "create_starting_game_state",
     "draw_card",
     "get_legal_actions",
     "is_legal_action",

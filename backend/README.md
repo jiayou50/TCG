@@ -19,10 +19,17 @@ cd backend
 python -m unittest discover -s tests -p 'test_*.py'
 ```
 
-## Starting a backend server
+## Run API server (FastAPI)
 
-There is no API server entrypoint in this folder yet.  
-When an API layer (for example FastAPI or Django) is added, this README should include the exact server start command.
+```bash
+cd backend
+uvicorn tcg_engine.api:app --app-dir src --reload
+```
+
+Available endpoints:
+
+- `GET /health`
+- `GET /game-state` (returns a static default starting game state)
 
 ## Scope of this initial scaffold
 

@@ -20,6 +20,7 @@ To validate and run backend code locally:
 ```bash
 cd backend
 python -m unittest discover -s tests -p 'test_*.py'
+uvicorn tcg_engine.api:app --app-dir src --reload
 ```
 
 ### Frontend
@@ -39,11 +40,13 @@ The Vite dev server will print the local URL (typically `http://localhost:5173`)
 - Domain models for cards, players, zones, phases, and game state
 - Basic operations: draw card, move card between zones, phase progression
 - Minimal legal-action API (`get_legal_actions` / `apply_action`)
+- FastAPI service with `/health` and `/game-state`
+- Default game state bootstrap for end-to-end frontend integration
 - Unit tests for the core operations
 
 ## Next steps
 
 1. Expand Magic timing windows and stack behavior.
 2. Add mana system and spell casting costs.
-3. Add an API service in `backend/` for multiplayer and AI adapters.
-4. Connect the React UI to backend endpoints.
+3. Expand API from static game state to mutable match state.
+4. Add multiplayer and AI adapters.

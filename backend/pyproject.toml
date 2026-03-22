@@ -9,7 +9,10 @@ description = "Core backend game engine for a Magic-like trading card game"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "TCG" }]
-dependencies = []
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.32.0",
+]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
