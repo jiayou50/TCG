@@ -1,13 +1,13 @@
 # TCG Monorepo
 
-This repository now contains two projects:
+This repository contains two projects:
 
 - `backend/`: Python core game logic engine (Magic-like rules framework)
-- `web/`: Web frontend scaffold
+- `web/`: React + TypeScript frontend powered by Vite
 
 ## Why this structure
 
-This split keeps game rules deterministic and testable in Python while allowing fast UI iteration in a web app.
+This split keeps game rules deterministic and testable in Python while allowing fast UI iteration in a modern web app.
 
 ## Getting started
 
@@ -20,7 +20,11 @@ python -m unittest discover -s tests -p 'test_*.py'
 
 ### Frontend
 
-Open `web/index.html` in a browser to view the scaffold UI.
+```bash
+cd web
+npm install
+npm run dev
+```
 
 ## Current backend capabilities
 
@@ -33,5 +37,5 @@ Open `web/index.html` in a browser to view the scaffold UI.
 
 1. Expand Magic timing windows and stack behavior.
 2. Add mana system and spell casting costs.
-3. Add FastAPI service in `backend/` for multiplayer and AI adapters.
-4. Replace `web/` scaffold with React + TypeScript app connected to the API.
+3. Add an API service in `backend/` for multiplayer and AI adapters.
+4. Connect the React UI to backend endpoints.
