@@ -183,6 +183,57 @@ def spend_mana_cost(player: PlayerState, mana_cost: str) -> None:
         generic_to_pay -= spend
 
 
+def resolve_combat_damage(state: GameState) -> None:
+    if state.phase != Phase.COMBAT:
+        raise ValueError("Combat damage can only be resolved during combat")
+
+    combat_damage: dict[str, int] = {}
+    blockers_by_attacker: dict[str, list[str]] = {}
+    for blocker_id, attacker_id in state.declared_blocks.items():
+        blockers_by_attacker.setdefault(attacker_id, []).append(blocker_id)
+
+    for attacker_id, defending_player_id in state.declared_attackers.items():
+        attacker = state.cards[attacker_id]
+        if attacker.card_type != CardType.CREATURE:
+            continue
+
+        blockers = blockers_by_attacker.get(attacker_id, [])
+        if not blockers:
+            state.players[defending_player_id].life_total -= attacker.power or 0
+            state.event_log.append(
+                f"{attacker_id} dealt {attacker.power} damage to {defending_player_id}"
+            )
+            continue
+
+        primary_blocker_id = blockers[0]
+        primary_blocker = state.cards[primary_blocker_id]
+        combat_damage[primary_blocker_id] = combat_damage.get(primary_blocker_id, 0) + (attacker.power or 0)
+        state.event_log.append(
+            f"{attacker_id} dealt {attacker.power} damage to {primary_blocker_id}"
+        )
+
+        for blocker_id in blockers:
+            blocker = state.cards[blocker_id]
+            combat_damage[attacker_id] = combat_damage.get(attacker_id, 0) + (blocker.power or 0)
+            state.event_log.append(
+                f"{blocker_id} dealt {blocker.power} damage to {attacker_id}"
+            )
+
+    for creature_id, damage in combat_damage.items():
+        creature = state.cards[creature_id]
+        if creature.card_type != CardType.CREATURE:
+            continue
+        if damage < (creature.toughness or 0):
+            continue
+
+        owner_id = creature.owner_id
+        if creature_id not in state.players[owner_id].battlefield:
+            continue
+
+        move_card(state, owner_id, creature_id, Zone.BATTLEFIELD, Zone.GRAVEYARD)
+        state.event_log.append(f"{creature_id} was destroyed in combat")
+
+
 def next_phase(state: GameState) -> None:
     order = [
         Phase.BEGINNING,
@@ -196,6 +247,7 @@ def next_phase(state: GameState) -> None:
         _next_turn(state)
         return
     if state.phase == Phase.COMBAT:
+        resolve_combat_damage(state)
         state.declared_attackers.clear()
         state.declared_blocks.clear()
     state.phase = order[idx + 1]
@@ -226,6 +278,11 @@ def apply_action(state: GameState, action: Action) -> None:
         return
     if action.kind == "tap_land_for_mana" and action.card_id:
         tap_land_for_mana(state, action.actor_id, action.card_id)
+        return
+    if action.kind == "resolve_combat_damage":
+        resolve_combat_damage(state)
+        state.declared_attackers.clear()
+        state.declared_blocks.clear()
         return
     raise ValueError(f"Unsupported action kind: {action.kind}")
 

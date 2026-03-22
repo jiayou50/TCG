@@ -9,13 +9,13 @@ def create_starting_game_state() -> GameState:
     """Create a static game state suitable for first end-to-end integration."""
     p1 = PlayerState(
         id="p1",
-        library=["p1_c1", "p1_c2"],
+        library=["p1_c1", "p1_c2", "p1_c4", "p1_l3"],
         hand=["p1_l1", "p1_c3"],
         battlefield=["p1_l2"],
     )
     p2 = PlayerState(
         id="p2",
-        library=["p2_c1", "p2_c2"],
+        library=["p2_c1", "p2_c2", "p2_c3", "p2_l2"],
         hand=["p2_l1"],
     )
 
@@ -47,6 +47,15 @@ def create_starting_game_state() -> GameState:
             power=2,
             toughness=1,
         ),
+        "p1_c4": Card(
+            id="p1_c4",
+            name="Dawn Sentry",
+            owner_id="p1",
+            mana_cost="2W",
+            card_type=CardType.CREATURE,
+            power=2,
+            toughness=3,
+        ),
         "p1_l1": Card(
             id="p1_l1",
             name="Forest",
@@ -62,6 +71,14 @@ def create_starting_game_state() -> GameState:
             mana_cost="",
             card_type=CardType.LAND,
             produces_mana=(ManaColor.RED,),
+        ),
+        "p1_l3": Card(
+            id="p1_l3",
+            name="Plains",
+            owner_id="p1",
+            mana_cost="",
+            card_type=CardType.LAND,
+            produces_mana=(ManaColor.WHITE,),
         ),
         "p2_c1": Card(
             id="p2_c1",
@@ -81,6 +98,15 @@ def create_starting_game_state() -> GameState:
             power=2,
             toughness=4,
         ),
+        "p2_c3": Card(
+            id="p2_c3",
+            name="Bog Lurker",
+            owner_id="p2",
+            mana_cost="1B",
+            card_type=CardType.CREATURE,
+            power=2,
+            toughness=2,
+        ),
         "p2_l1": Card(
             id="p2_l1",
             name="Swamp",
@@ -88,6 +114,14 @@ def create_starting_game_state() -> GameState:
             mana_cost="",
             card_type=CardType.LAND,
             produces_mana=(ManaColor.BLACK,),
+        ),
+        "p2_l2": Card(
+            id="p2_l2",
+            name="Plains",
+            owner_id="p2",
+            mana_cost="",
+            card_type=CardType.LAND,
+            produces_mana=(ManaColor.WHITE,),
         ),
     }
 

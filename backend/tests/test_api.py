@@ -29,6 +29,8 @@ class TestApi(unittest.TestCase):
         self.assertIn("players", payload)
         self.assertIn("cards", payload)
         self.assertIn("p1", payload["players"])
+        self.assertGreaterEqual(len(payload["players"]["p1"]["library"]), 4)
+        self.assertGreaterEqual(len(payload["players"]["p2"]["library"]), 4)
 
     def test_legal_actions_for_player(self) -> None:
         response = self.client.get("/players/p1/legal-actions")
