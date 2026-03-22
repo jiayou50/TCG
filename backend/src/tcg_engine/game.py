@@ -269,6 +269,16 @@ def next_phase(state: GameState) -> None:
     state.event_log.append(f"phase -> {state.phase.value}")
 
 
+def pass_turn(state: GameState, player_id: str) -> None:
+    if player_id != state.active_player_id:
+        raise ValueError("Only the active player can pass the turn")
+    if state.phase not in (Phase.PRECOMBAT_MAIN, Phase.POSTCOMBAT_MAIN):
+        raise ValueError("Turns can only be passed during main phases")
+
+    _next_turn(state)
+    state.event_log.append(f"{player_id} passed turn")
+
+
 def apply_action(state: GameState, action: Action) -> None:
     if action.kind == "draw":
         draw_card(state, action.actor_id)
@@ -289,6 +299,9 @@ def apply_action(state: GameState, action: Action) -> None:
         return
     if action.kind == "next_phase":
         next_phase(state)
+        return
+    if action.kind == "pass_turn":
+        pass_turn(state, action.actor_id)
         return
     if action.kind == "play_land" and action.card_id:
         play_land(state, action.actor_id, action.card_id)
@@ -328,6 +341,7 @@ def get_legal_actions(state: GameState, player_id: str) -> list[Action]:
 
     player = state.players[player_id]
     if player_id == state.active_player_id and state.phase in (Phase.PRECOMBAT_MAIN, Phase.POSTCOMBAT_MAIN):
+        actions.append(Action(kind="pass_turn", actor_id=player_id))
         if player.lands_played_this_turn < 1:
             for card_id in player.hand:
                 if state.cards[card_id].card_type == CardType.LAND:
