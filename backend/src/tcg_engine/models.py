@@ -83,4 +83,6 @@ class GameState:
     phase: Phase = Phase.BEGINNING
     turn_number: int = 1
     stack: list[str] = field(default_factory=list)
+    declared_attackers: dict[str, str] = field(default_factory=dict)
+    declared_blocks: dict[str, str] = field(default_factory=dict)
     event_log: list[str] = field(default_factory=list)

@@ -12,6 +12,7 @@ class Action:
     kind: str
     actor_id: str
     card_id: str | None = None
+    target_id: str | None = None
 
 
 def draw_card(state: GameState, player_id: str) -> None:
@@ -76,6 +77,71 @@ def tap_land_for_mana(state: GameState, player_id: str, card_id: str) -> None:
     state.event_log.append(f"{player_id} tapped {card_id} for {produced}")
 
 
+def play_card(state: GameState, player_id: str, card_id: str) -> None:
+    player = state.players[player_id]
+    if player_id != state.active_player_id:
+        raise ValueError("Only the active player can play a card")
+    if state.phase not in (Phase.PRECOMBAT_MAIN, Phase.POSTCOMBAT_MAIN):
+        raise ValueError("Cards can only be played during main phases")
+    if card_id not in player.hand:
+        raise ValueError("Card must be in hand")
+
+    card = state.cards[card_id]
+    if card.card_type == CardType.LAND:
+        raise ValueError("Use play_land for land cards")
+    if not can_pay_mana_cost(player, card.mana_cost):
+        raise ValueError("Insufficient mana to play card")
+
+    spend_mana_cost(player, card.mana_cost)
+    move_card(state, player_id, card_id, Zone.HAND, Zone.BATTLEFIELD)
+    state.event_log.append(f"{player_id} played card {card_id}")
+
+
+def attack_with_creature(state: GameState, player_id: str, card_id: str) -> None:
+    player = state.players[player_id]
+    if state.phase != Phase.COMBAT:
+        raise ValueError("Attacks can only be declared during combat")
+    if player_id != state.active_player_id:
+        raise ValueError("Only the active player can declare attackers")
+    if card_id not in player.battlefield:
+        raise ValueError("Creature must be on the battlefield")
+    if card_id in player.tapped_permanents:
+        raise ValueError("Creature is tapped")
+
+    card = state.cards[card_id]
+    if card.card_type != CardType.CREATURE:
+        raise ValueError("Only creatures can attack")
+
+    player.tapped_permanents.add(card_id)
+    defending_player_id = next(pid for pid in state.players if pid != player_id)
+    state.declared_attackers[card_id] = defending_player_id
+    state.event_log.append(f"{player_id} attacked with {card_id}")
+
+
+def block_with_creature(state: GameState, player_id: str, card_id: str, attacker_id: str) -> None:
+    player = state.players[player_id]
+    if state.phase != Phase.COMBAT:
+        raise ValueError("Blocks can only be declared during combat")
+    if player_id == state.active_player_id:
+        raise ValueError("Active player cannot block")
+    if card_id not in player.battlefield:
+        raise ValueError("Blocking creature must be on the battlefield")
+    if card_id in player.tapped_permanents:
+        raise ValueError("Blocking creature is tapped")
+    if attacker_id not in state.declared_attackers:
+        raise ValueError("Target attacker is not currently attacking")
+
+    card = state.cards[card_id]
+    if card.card_type != CardType.CREATURE:
+        raise ValueError("Only creatures can block")
+
+    if card_id in state.declared_blocks:
+        raise ValueError("Blocker has already been assigned")
+
+    state.declared_blocks[card_id] = attacker_id
+    state.event_log.append(f"{player_id} blocked {attacker_id} with {card_id}")
+
+
 def add_mana(player: PlayerState, color: ManaColor, amount: int = 1) -> None:
     if amount <= 0:
         raise ValueError("amount must be positive")
@@ -129,6 +195,9 @@ def next_phase(state: GameState) -> None:
     if idx == len(order) - 1:
         _next_turn(state)
         return
+    if state.phase == Phase.COMBAT:
+        state.declared_attackers.clear()
+        state.declared_blocks.clear()
     state.phase = order[idx + 1]
     state.event_log.append(f"phase -> {state.phase.value}")
 
@@ -137,11 +206,23 @@ def apply_action(state: GameState, action: Action) -> None:
     if action.kind == "draw":
         draw_card(state, action.actor_id)
         return
+    if action.kind == "pass_priority":
+        next_phase(state)
+        return
     if action.kind == "next_phase":
         next_phase(state)
         return
     if action.kind == "play_land" and action.card_id:
         play_land(state, action.actor_id, action.card_id)
+        return
+    if action.kind == "play_card" and action.card_id:
+        play_card(state, action.actor_id, action.card_id)
+        return
+    if action.kind == "attack_with_creature" and action.card_id:
+        attack_with_creature(state, action.actor_id, action.card_id)
+        return
+    if action.kind == "block_with_creature" and action.card_id and action.target_id:
+        block_with_creature(state, action.actor_id, action.card_id, action.target_id)
         return
     if action.kind == "tap_land_for_mana" and action.card_id:
         tap_land_for_mana(state, action.actor_id, action.card_id)
@@ -152,7 +233,7 @@ def apply_action(state: GameState, action: Action) -> None:
 def get_legal_actions(state: GameState, player_id: str) -> list[Action]:
     actions: list[Action] = []
     if player_id == state.priority_player_id:
-        actions.append(Action(kind="next_phase", actor_id=player_id))
+        actions.append(Action(kind="pass_priority", actor_id=player_id))
 
     if player_id == state.active_player_id and state.players[player_id].library:
         actions.append(Action(kind="draw", actor_id=player_id))
@@ -163,6 +244,31 @@ def get_legal_actions(state: GameState, player_id: str) -> list[Action]:
             for card_id in player.hand:
                 if state.cards[card_id].card_type == CardType.LAND:
                     actions.append(Action(kind="play_land", actor_id=player_id, card_id=card_id))
+        for card_id in player.hand:
+            card = state.cards[card_id]
+            if card.card_type == CardType.CREATURE and can_pay_mana_cost(player, card.mana_cost):
+                actions.append(Action(kind="play_card", actor_id=player_id, card_id=card_id))
+
+    if state.phase == Phase.COMBAT:
+        if player_id == state.active_player_id:
+            for card_id in player.battlefield:
+                card = state.cards[card_id]
+                if card.card_type == CardType.CREATURE and card_id not in player.tapped_permanents:
+                    actions.append(Action(kind="attack_with_creature", actor_id=player_id, card_id=card_id))
+        else:
+            for card_id in player.battlefield:
+                card = state.cards[card_id]
+                if card.card_type != CardType.CREATURE or card_id in player.tapped_permanents:
+                    continue
+                for attacker_id in state.declared_attackers:
+                    actions.append(
+                        Action(
+                            kind="block_with_creature",
+                            actor_id=player_id,
+                            card_id=card_id,
+                            target_id=attacker_id,
+                        )
+                    )
 
     for card_id in player.battlefield:
         card = state.cards[card_id]
@@ -181,6 +287,8 @@ def _next_turn(state: GameState) -> None:
     state.active_player_id = next_player
     state.priority_player_id = next_player
     state.phase = Phase.BEGINNING
+    state.declared_attackers.clear()
+    state.declared_blocks.clear()
 
     for player in state.players.values():
         clear_mana_pool(player)
