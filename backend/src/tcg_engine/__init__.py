@@ -15,6 +15,7 @@ from .game import (
     play_card,
     play_land,
     spend_mana_cost,
+    tap_all_lands_for_mana,
     tap_land_for_mana,
 )
 from .bootstrap import create_starting_game_state
@@ -47,5 +48,6 @@ __all__ = [
     "play_card",
     "play_land",
     "spend_mana_cost",
+    "tap_all_lands_for_mana",
     "tap_land_for_mana",
 ]
