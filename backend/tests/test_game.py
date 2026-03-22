@@ -203,6 +203,41 @@ class TestGame(unittest.TestCase):
         )
         self.assertEqual(state.declared_blocks["c3"], "c1")
 
+    def test_unblocked_attacker_deals_damage_on_combat_end(self) -> None:
+        state = make_state()
+        p1 = state.players["p1"]
+        p2 = state.players["p2"]
+        p1.battlefield.append("c1")
+        state.phase = Phase.COMBAT
+
+        apply_action(state, Action(kind="attack_with_creature", actor_id="p1", card_id="c1"))
+        next_phase(state)
+
+        self.assertEqual(p2.life_total, 18)
+        self.assertEqual(state.phase, Phase.POSTCOMBAT_MAIN)
+        self.assertEqual(state.declared_attackers, {})
+
+    def test_blocked_combat_sends_lethally_damaged_blocker_to_graveyard(self) -> None:
+        state = make_state()
+        p1 = state.players["p1"]
+        p2 = state.players["p2"]
+        p1.battlefield.append("c1")
+        p2.battlefield.append("c3")
+        state.phase = Phase.COMBAT
+
+        apply_action(state, Action(kind="attack_with_creature", actor_id="p1", card_id="c1"))
+        apply_action(
+            state,
+            Action(kind="block_with_creature", actor_id="p2", card_id="c3", target_id="c1"),
+        )
+
+        next_phase(state)
+
+        self.assertNotIn("c3", p2.battlefield)
+        self.assertIn("c1", p1.battlefield)
+        self.assertIn("c3", p2.graveyard)
+        self.assertEqual(p2.life_total, 20)
+
     def test_legal_actions_include_requested_player_actions(self) -> None:
         state = make_state()
         p1 = state.players["p1"]
