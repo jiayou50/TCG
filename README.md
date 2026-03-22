@@ -33,7 +33,21 @@ npm install
 npm run dev
 ```
 
-The Vite dev server will print the local URL (typically `http://localhost:5173`).
+The Vite dev server is configured to listen on all interfaces (`0.0.0.0`), so it is reachable from other devices on the same Wi-Fi/LAN in addition to localhost.
+
+To connect from another device:
+
+1. Find this machine's local IP address (for example `192.168.1.25`).
+2. Keep the frontend running with `npm run dev`.
+3. Open `http://<your-local-ip>:5173` from another device on the same network.
+
+Example:
+
+```text
+http://192.168.1.25:5173
+```
+
+If it does not load, allow incoming connections for port `5173` in your OS firewall.
 
 ## Current backend capabilities
 
