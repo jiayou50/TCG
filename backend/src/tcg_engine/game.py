@@ -89,6 +89,25 @@ def tap_land_for_mana(state: GameState, player_id: str, card_id: str) -> None:
     state.event_log.append(f"{player_id} tapped {card_id} for {produced}")
 
 
+def tap_all_lands_for_mana(state: GameState, player_id: str) -> None:
+    if player_id != state.active_player_id:
+        raise ValueError("Only the active player can tap all lands")
+
+    player = state.players[player_id]
+    untapped_lands = [
+        card_id
+        for card_id in player.battlefield
+        if state.cards[card_id].card_type == CardType.LAND and card_id not in player.tapped_permanents
+    ]
+    if not untapped_lands:
+        raise ValueError("No untapped lands available to tap")
+
+    for card_id in untapped_lands:
+        tap_land_for_mana(state, player_id, card_id)
+
+    state.event_log.append(f"{player_id} tapped all untapped lands for mana")
+
+
 def play_card(state: GameState, player_id: str, card_id: str) -> None:
     player = state.players[player_id]
     if player_id != state.active_player_id:
@@ -260,6 +279,7 @@ def next_phase(state: GameState) -> None:
         Phase.ENDING,
     ]
     idx = order.index(state.phase)
+    _clear_all_mana_pools(state)
     if idx == len(order) - 1:
         _next_turn(state)
         return
@@ -321,6 +341,9 @@ def apply_action(state: GameState, action: Action) -> None:
         return
     if action.kind == "tap_land_for_mana" and action.card_id:
         tap_land_for_mana(state, action.actor_id, action.card_id)
+        return
+    if action.kind == "tap_all_lands_for_mana":
+        tap_all_lands_for_mana(state, action.actor_id)
         return
     if action.kind == "resolve_combat_damage":
         resolve_combat_damage(state)
@@ -386,6 +409,10 @@ def get_legal_actions(state: GameState, player_id: str) -> list[Action]:
         card = state.cards[card_id]
         if card.card_type == CardType.LAND and card_id not in player.tapped_permanents:
             actions.append(Action(kind="tap_land_for_mana", actor_id=player_id, card_id=card_id))
+            if player_id == state.active_player_id and not any(
+                action.kind == "tap_all_lands_for_mana" for action in actions
+            ):
+                actions.append(Action(kind="tap_all_lands_for_mana", actor_id=player_id))
     return actions
 
 
@@ -412,6 +439,11 @@ def _next_turn(state: GameState) -> None:
     active_player.lands_played_this_turn = 0
 
     state.event_log.append(f"turn -> {state.turn_number}, active -> {next_player}")
+
+
+def _clear_all_mana_pools(state: GameState) -> None:
+    for player in state.players.values():
+        clear_mana_pool(player)
 
 
 def _attacking_player_id(state: GameState) -> str | None:

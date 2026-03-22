@@ -22,6 +22,7 @@ from tcg_engine import (
     play_card,
     play_land,
     spend_mana_cost,
+    tap_all_lands_for_mana,
     tap_land_for_mana,
 )
 
@@ -159,6 +160,35 @@ class TestGame(unittest.TestCase):
         tap_land_for_mana(state, "p1", "l1")
         self.assertEqual(state.players["p1"].mana_pool[ManaColor.GREEN], 1)
         self.assertIn("l1", state.players["p1"].tapped_permanents)
+
+    def test_tap_all_lands_for_mana_taps_only_untapped_lands(self) -> None:
+        state = make_state()
+        state.phase = Phase.PRECOMBAT_MAIN
+        player = state.players["p1"]
+        player.battlefield.extend(["l1", "l2"])
+        player.tapped_permanents.add("l2")
+
+        tap_all_lands_for_mana(state, "p1")
+
+        self.assertEqual(player.mana_pool[ManaColor.GREEN], 1)
+        self.assertEqual(player.mana_pool[ManaColor.RED], 0)
+        self.assertIn("l1", player.tapped_permanents)
+        self.assertIn("l2", player.tapped_permanents)
+
+    def test_tap_all_lands_for_mana_requires_active_player(self) -> None:
+        state = make_state()
+        state.players["p2"].battlefield.append("l3")
+        state.cards["l3"] = Card(
+            id="l3",
+            name="Forest",
+            owner_id="p2",
+            mana_cost="",
+            card_type=CardType.LAND,
+            produces_mana=(ManaColor.GREEN,),
+        )
+
+        with self.assertRaises(ValueError):
+            tap_all_lands_for_mana(state, "p2")
 
     def test_spend_mana_cost(self) -> None:
         state = make_state()
@@ -374,6 +404,24 @@ class TestGame(unittest.TestCase):
         self.assertEqual(state.active_player_id, "p2")
         self.assertEqual(state.priority_player_id, "p2")
         self.assertFalse(state.has_drawn_this_turn)
+
+    def test_mana_pool_clears_for_all_players_when_phase_advances(self) -> None:
+        state = make_state()
+        state.players["p1"].mana_pool[ManaColor.GREEN] = 2
+        state.players["p2"].mana_pool[ManaColor.BLUE] = 1
+
+        next_phase(state)
+
+        self.assertEqual(sum(state.players["p1"].mana_pool.values()), 0)
+        self.assertEqual(sum(state.players["p2"].mana_pool.values()), 0)
+
+    def test_legal_actions_include_tap_all_lands_for_active_player(self) -> None:
+        state = make_state()
+        state.phase = Phase.PRECOMBAT_MAIN
+        state.players["p1"].battlefield.extend(["l1", "l2"])
+
+        legal_actions = get_legal_actions(state, "p1")
+        self.assertTrue(any(action.kind == "tap_all_lands_for_mana" for action in legal_actions))
 
 
 if __name__ == "__main__":
