@@ -103,3 +103,17 @@ body {
   margin: 0.25rem 0;
   font-size: 0.9rem;
 }
+
+.card-zone {
+  margin: 0.35rem 0;
+  font-size: 0.9rem;
+}
+
+.card-zone ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.card-zone p {
+  margin: 0.25rem 0 0;
+}
