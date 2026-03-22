@@ -67,3 +67,39 @@ body {
   overflow: auto;
   font-size: 0.85rem;
 }
+
+.game-summary-panel {
+  margin-top: 1rem;
+}
+
+.game-summary-panel h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.turn-phase {
+  margin: 0.5rem 0 0;
+}
+
+.players-grid {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.player-summary {
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+}
+
+.player-summary h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.player-summary p {
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+}
