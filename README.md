@@ -44,7 +44,7 @@ To connect from another device:
 Example:
 
 ```text
-http://192.168.1.25:5173
+http://192.168.86.250:5173
 ```
 
 If it does not load, allow incoming connections for port `5173` in your OS firewall.
