@@ -7,6 +7,7 @@ type PlayerState = {
   battlefield: string[];
   graveyard: string[];
   tappedPermanents: string[];
+  summoningSickCreatures: string[];
   manaPool: Record<string, number>;
 };
 
@@ -64,6 +65,7 @@ const formatCardNames = (
   cardIds: string[],
   cards: Record<string, CardState>,
   tappedCardIds: Set<string> = new Set(),
+  summoningSickCardIds: Set<string> = new Set(),
 ): string => {
   if (cardIds.length === 0) {
     return "None";
@@ -73,8 +75,9 @@ const formatCardNames = (
     .map((cardId) => {
       const card = cards[cardId];
       const tappedSuffix = tappedCardIds.has(cardId) ? " [tapped]" : "";
+      const summoningSickSuffix = summoningSickCardIds.has(cardId) ? " [summoning sickness]" : "";
       if (!card) {
-        return `${cardId}${tappedSuffix}`;
+        return `${cardId}${tappedSuffix}${summoningSickSuffix}`;
       }
 
       const isCreature = card.cardType.toLowerCase() === "creature";
@@ -84,7 +87,7 @@ const formatCardNames = (
 
       const powerToughness =
         card.power !== null && card.toughness !== null ? `${card.power}/${card.toughness}` : "?/?";
-      return `${card.name} (${card.manaCost}) (${powerToughness})${tappedSuffix}`;
+      return `${card.name} (${card.manaCost}) (${powerToughness})${tappedSuffix}${summoningSickSuffix}`;
     })
     .join(", ");
 };
@@ -224,6 +227,7 @@ function App() {
                       player.battlefield,
                       gameState.cards,
                       new Set(player.tappedPermanents),
+                      new Set(player.summoningSickCreatures),
                     )}
                   </p>
                 </article>

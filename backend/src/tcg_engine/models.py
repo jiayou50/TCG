@@ -68,6 +68,7 @@ class PlayerState:
     battlefield: list[str] = field(default_factory=list)
     graveyard: list[str] = field(default_factory=list)
     tapped_permanents: set[str] = field(default_factory=set)
+    summoning_sick_creatures: set[str] = field(default_factory=set)
     lands_played_this_turn: int = 0
     mana_pool: dict[ManaColor, int] = field(
         default_factory=lambda: {color: 0 for color in ManaColor}

@@ -212,6 +212,43 @@ class TestGame(unittest.TestCase):
         )
         self.assertEqual(state.declared_blocks["c3"], "c1")
 
+    def test_creature_gains_and_loses_summoning_sickness(self) -> None:
+        state = make_state()
+        state.phase = Phase.PRECOMBAT_MAIN
+        player = state.players["p1"]
+        player.hand.append("c1")
+        player.mana_pool[ManaColor.GREEN] = 1
+        player.mana_pool[ManaColor.RED] = 1
+
+        play_card(state, "p1", "c1")
+        self.assertIn("c1", player.summoning_sick_creatures)
+
+        move_card(state, "p1", "c1", Zone.BATTLEFIELD, Zone.GRAVEYARD)
+        self.assertNotIn("c1", player.summoning_sick_creatures)
+
+    def test_summoning_sickness_prevents_attack_until_next_turn(self) -> None:
+        state = make_state()
+        p1 = state.players["p1"]
+        p1.battlefield.append("c1")
+        p1.summoning_sick_creatures.add("c1")
+        state.phase = Phase.COMBAT
+
+        with self.assertRaises(ValueError):
+            apply_action(state, Action(kind="attack_with_creature", actor_id="p1", card_id="c1"))
+
+        state.phase = Phase.PRECOMBAT_MAIN
+        apply_action(state, Action(kind="pass_turn", actor_id="p1"))
+        apply_action(state, Action(kind="draw", actor_id="p2"))
+        apply_action(state, Action(kind="pass_priority", actor_id="p2"))
+        apply_action(state, Action(kind="pass_turn", actor_id="p2"))
+        apply_action(state, Action(kind="draw", actor_id="p1"))
+        apply_action(state, Action(kind="pass_priority", actor_id="p1"))
+        apply_action(state, Action(kind="pass_priority", actor_id="p1"))
+        self.assertEqual(state.phase, Phase.COMBAT)
+
+        apply_action(state, Action(kind="attack_with_creature", actor_id="p1", card_id="c1"))
+        self.assertEqual(state.declared_attackers["c1"], "p2")
+
     def test_combat_pass_priority_returns_control_to_attacker(self) -> None:
         state = make_state()
         p1 = state.players["p1"]
