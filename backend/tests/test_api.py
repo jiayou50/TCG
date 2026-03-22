@@ -102,6 +102,17 @@ class TestApi(unittest.TestCase):
         self.assertEqual(payload["appliedAction"]["kind"], "pass_priority")
         self.assertEqual(payload["gameState"]["phase"], "precombat_main")
 
+    def test_pass_turn_skips_to_next_players_beginning(self) -> None:
+        self.client.post("/actions", json={"kind": "pass_priority", "actorId": "p1"})
+
+        response = self.client.post("/actions", json={"kind": "pass_turn", "actorId": "p1"})
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["appliedAction"]["kind"], "pass_turn")
+        self.assertEqual(payload["gameState"]["phase"], "beginning")
+        self.assertEqual(payload["gameState"]["activePlayerId"], "p2")
+        self.assertEqual(payload["gameState"]["turnNumber"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()

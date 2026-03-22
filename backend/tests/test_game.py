@@ -293,6 +293,26 @@ class TestGame(unittest.TestCase):
         legal_after = {action.kind for action in get_legal_actions(state, "p1")}
         self.assertNotIn("draw", legal_after)
 
+    def test_pass_turn_is_legal_during_main_phase(self) -> None:
+        state = make_state()
+        state.phase = Phase.PRECOMBAT_MAIN
+
+        legal_actions = {action.kind for action in get_legal_actions(state, "p1")}
+        self.assertIn("pass_turn", legal_actions)
+
+    def test_pass_turn_moves_to_next_players_beginning(self) -> None:
+        state = make_state()
+        state.phase = Phase.PRECOMBAT_MAIN
+        state.has_drawn_this_turn = True
+
+        apply_action(state, Action(kind="pass_turn", actor_id="p1"))
+
+        self.assertEqual(state.turn_number, 2)
+        self.assertEqual(state.phase, Phase.BEGINNING)
+        self.assertEqual(state.active_player_id, "p2")
+        self.assertEqual(state.priority_player_id, "p2")
+        self.assertFalse(state.has_drawn_this_turn)
+
 
 if __name__ == "__main__":
     unittest.main()
