@@ -124,15 +124,21 @@ def attack_with_creature(state: GameState, player_id: str, card_id: str) -> None
     player.tapped_permanents.add(card_id)
     defending_player_id = next(pid for pid in state.players if pid != player_id)
     state.declared_attackers[card_id] = defending_player_id
+    state.active_player_id = defending_player_id
+    state.priority_player_id = defending_player_id
     state.event_log.append(f"{player_id} attacked with {card_id}")
+    state.event_log.append(f"active -> {defending_player_id} (declare blockers)")
 
 
 def block_with_creature(state: GameState, player_id: str, card_id: str, attacker_id: str) -> None:
     player = state.players[player_id]
     if state.phase != Phase.COMBAT:
         raise ValueError("Blocks can only be declared during combat")
-    if player_id == state.active_player_id:
-        raise ValueError("Active player cannot block")
+    attacking_player_id = _attacking_player_id(state)
+    if attacking_player_id is None:
+        raise ValueError("No attackers declared")
+    if player_id == attacking_player_id:
+        raise ValueError("Attacking player cannot block")
     if card_id not in player.battlefield:
         raise ValueError("Blocking creature must be on the battlefield")
     if card_id in player.tapped_permanents:
@@ -268,6 +274,17 @@ def apply_action(state: GameState, action: Action) -> None:
         draw_card(state, action.actor_id)
         return
     if action.kind == "pass_priority":
+        attacking_player_id = _attacking_player_id(state)
+        if (
+            state.phase == Phase.COMBAT
+            and attacking_player_id is not None
+            and state.active_player_id != attacking_player_id
+            and action.actor_id == state.active_player_id
+        ):
+            state.active_player_id = attacking_player_id
+            state.priority_player_id = attacking_player_id
+            state.event_log.append(f"priority passed to {attacking_player_id}")
+            return
         next_phase(state)
         return
     if action.kind == "next_phase":
@@ -321,12 +338,13 @@ def get_legal_actions(state: GameState, player_id: str) -> list[Action]:
                 actions.append(Action(kind="play_card", actor_id=player_id, card_id=card_id))
 
     if state.phase == Phase.COMBAT:
-        if player_id == state.active_player_id:
+        attacking_player_id = _attacking_player_id(state) or state.active_player_id
+        if not state.declared_attackers and player_id == attacking_player_id:
             for card_id in player.battlefield:
                 card = state.cards[card_id]
                 if card.card_type == CardType.CREATURE and card_id not in player.tapped_permanents:
                     actions.append(Action(kind="attack_with_creature", actor_id=player_id, card_id=card_id))
-        else:
+        elif state.declared_attackers and player_id != attacking_player_id:
             for card_id in player.battlefield:
                 card = state.cards[card_id]
                 if card.card_type != CardType.CREATURE or card_id in player.tapped_permanents:
@@ -370,6 +388,13 @@ def _next_turn(state: GameState) -> None:
     active_player.lands_played_this_turn = 0
 
     state.event_log.append(f"turn -> {state.turn_number}, active -> {next_player}")
+
+
+def _attacking_player_id(state: GameState) -> str | None:
+    if not state.declared_attackers:
+        return None
+    first_attacker_id = next(iter(state.declared_attackers))
+    return state.cards[first_attacker_id].owner_id
 
 
 def _zone_list(player: PlayerState, zone: Zone) -> list[str]:
