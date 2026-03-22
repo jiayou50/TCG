@@ -269,10 +269,8 @@ class TestGame(unittest.TestCase):
         state.phase = Phase.PRECOMBAT_MAIN
         apply_action(state, Action(kind="pass_turn", actor_id="p1"))
         apply_action(state, Action(kind="draw", actor_id="p2"))
-        apply_action(state, Action(kind="pass_priority", actor_id="p2"))
         apply_action(state, Action(kind="pass_turn", actor_id="p2"))
         apply_action(state, Action(kind="draw", actor_id="p1"))
-        apply_action(state, Action(kind="pass_priority", actor_id="p1"))
         apply_action(state, Action(kind="pass_priority", actor_id="p1"))
         self.assertEqual(state.phase, Phase.COMBAT)
 
@@ -380,10 +378,12 @@ class TestGame(unittest.TestCase):
         state = make_state()
         legal_before = {action.kind for action in get_legal_actions(state, "p1")}
         self.assertIn("draw", legal_before)
+        self.assertNotIn("pass_priority", legal_before)
 
         apply_action(state, Action(kind="draw", actor_id="p1"))
         legal_after = {action.kind for action in get_legal_actions(state, "p1")}
         self.assertNotIn("draw", legal_after)
+        self.assertIn("pass_priority", legal_after)
 
     def test_pass_turn_is_legal_during_main_phase(self) -> None:
         state = make_state()

@@ -304,6 +304,7 @@ def pass_turn(state: GameState, player_id: str) -> None:
 def apply_action(state: GameState, action: Action) -> None:
     if action.kind == "draw":
         draw_card(state, action.actor_id)
+        next_phase(state)
         return
     if action.kind == "pass_priority":
         attacking_player_id = _attacking_player_id(state)
@@ -355,16 +356,13 @@ def apply_action(state: GameState, action: Action) -> None:
 
 def get_legal_actions(state: GameState, player_id: str) -> list[Action]:
     actions: list[Action] = []
+    if state.phase == Phase.BEGINNING:
+        if player_id == state.active_player_id and not state.has_drawn_this_turn:
+            actions.append(Action(kind="draw", actor_id=player_id))
+        return actions
+
     if player_id == state.priority_player_id:
         actions.append(Action(kind="pass_priority", actor_id=player_id))
-
-    if (
-        player_id == state.active_player_id
-        and state.phase == Phase.BEGINNING
-        and not state.has_drawn_this_turn
-        and state.players[player_id].library
-    ):
-        actions.append(Action(kind="draw", actor_id=player_id))
 
     player = state.players[player_id]
     if player_id == state.active_player_id and state.phase in (Phase.PRECOMBAT_MAIN, Phase.POSTCOMBAT_MAIN):
