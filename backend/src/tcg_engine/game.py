@@ -16,13 +16,22 @@ class Action:
 
 
 def draw_card(state: GameState, player_id: str) -> None:
+    if player_id != state.active_player_id:
+        raise ValueError("Only the active player can draw")
+    if state.phase != Phase.BEGINNING:
+        raise ValueError("Cards can only be drawn during the beginning phase")
+    if state.has_drawn_this_turn:
+        raise ValueError("A player can only draw one card during the beginning phase")
+
     player = state.players[player_id]
     if not player.library:
         state.event_log.append(f"{player_id} tried to draw from empty library")
+        state.has_drawn_this_turn = True
         return
 
     card_id = player.library.pop(0)
     player.hand.append(card_id)
+    state.has_drawn_this_turn = True
     state.event_log.append(f"{player_id} drew {card_id}")
 
 
@@ -292,7 +301,12 @@ def get_legal_actions(state: GameState, player_id: str) -> list[Action]:
     if player_id == state.priority_player_id:
         actions.append(Action(kind="pass_priority", actor_id=player_id))
 
-    if player_id == state.active_player_id and state.players[player_id].library:
+    if (
+        player_id == state.active_player_id
+        and state.phase == Phase.BEGINNING
+        and not state.has_drawn_this_turn
+        and state.players[player_id].library
+    ):
         actions.append(Action(kind="draw", actor_id=player_id))
 
     player = state.players[player_id]
@@ -344,6 +358,7 @@ def _next_turn(state: GameState) -> None:
     state.active_player_id = next_player
     state.priority_player_id = next_player
     state.phase = Phase.BEGINNING
+    state.has_drawn_this_turn = False
     state.declared_attackers.clear()
     state.declared_blocks.clear()
 

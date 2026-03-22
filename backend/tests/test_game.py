@@ -89,6 +89,14 @@ class TestGame(unittest.TestCase):
 
         self.assertEqual(state.players["p1"].library, ["c2"])
         self.assertEqual(state.players["p1"].hand, ["l1", "l2", "c1"])
+        self.assertTrue(state.has_drawn_this_turn)
+
+    def test_cannot_draw_more_than_once_in_beginning_phase(self) -> None:
+        state = make_state()
+        apply_action(state, Action(kind="draw", actor_id="p1"))
+
+        with self.assertRaises(ValueError):
+            apply_action(state, Action(kind="draw", actor_id="p1"))
 
     def test_phase_advances(self) -> None:
         state = make_state()
@@ -258,6 +266,15 @@ class TestGame(unittest.TestCase):
 
         legal_defender = get_legal_actions(state, "p2")
         self.assertTrue(any(action.kind == "block_with_creature" for action in legal_defender))
+
+    def test_draw_legal_action_only_once_during_beginning_phase(self) -> None:
+        state = make_state()
+        legal_before = {action.kind for action in get_legal_actions(state, "p1")}
+        self.assertIn("draw", legal_before)
+
+        apply_action(state, Action(kind="draw", actor_id="p1"))
+        legal_after = {action.kind for action in get_legal_actions(state, "p1")}
+        self.assertNotIn("draw", legal_after)
 
 
 if __name__ == "__main__":
