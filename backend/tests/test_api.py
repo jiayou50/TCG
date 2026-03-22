@@ -29,10 +29,10 @@ class TestApi(unittest.TestCase):
         self.assertIn("players", payload)
         self.assertIn("cards", payload)
         self.assertIn("p1", payload["players"])
-        self.assertEqual(len(payload["players"]["p1"]["library"]), 10)
-        self.assertEqual(len(payload["players"]["p2"]["library"]), 10)
-        self.assertEqual(len(payload["players"]["p1"]["hand"]), 3)
-        self.assertEqual(len(payload["players"]["p2"]["hand"]), 3)
+        self.assertEqual(len(payload["players"]["p1"]["library"]), 18)
+        self.assertEqual(len(payload["players"]["p2"]["library"]), 18)
+        self.assertEqual(len(payload["players"]["p1"]["hand"]), 5)
+        self.assertEqual(len(payload["players"]["p2"]["hand"]), 5)
         self.assertEqual(payload["players"]["p1"]["summoningSickCreatures"], [])
         self.assertEqual(payload["players"]["p2"]["summoningSickCreatures"], [])
 
@@ -49,13 +49,13 @@ class TestApi(unittest.TestCase):
 
         p1_cards = payload["players"]["p1"]["library"] + payload["players"]["p1"]["hand"]
         p2_cards = payload["players"]["p2"]["library"] + payload["players"]["p2"]["hand"]
-        self.assertEqual(len(p1_cards), 13)
-        self.assertEqual(len(p2_cards), 13)
+        self.assertEqual(len(p1_cards), 23)
+        self.assertEqual(len(p2_cards), 23)
 
         p1_lands, p1_creatures = _count_types(p1_cards)
         p2_lands, p2_creatures = _count_types(p2_cards)
-        self.assertEqual((p1_lands, p1_creatures), (5, 8))
-        self.assertEqual((p2_lands, p2_creatures), (5, 8))
+        self.assertEqual((p1_lands, p1_creatures), (9, 14))
+        self.assertEqual((p2_lands, p2_creatures), (9, 14))
 
         p1_names = {payload["cards"][card_id]["name"] for card_id in p1_cards}
         p2_names = {payload["cards"][card_id]["name"] for card_id in p2_cards}
