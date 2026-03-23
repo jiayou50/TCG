@@ -194,7 +194,7 @@ function App() {
 
       <section className="actions-panel" aria-live="polite">
         <h2>
-          Legal Actions ({actionsForPlayer ?? "-"})
+          Legal Actions ({actionsForPlayer ?? "-"} - {gameState?.phase ?? "-"})
         </h2>
         {legalActions.length > 0 ? (
           <div className="actions-list">
