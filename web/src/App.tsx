@@ -258,8 +258,13 @@ function App() {
                 const tappedPermanents = new Set(player.tappedPermanents);
                 const summoningSickCreatures = new Set(player.summoningSickCreatures);
 
+                const isActivePlayer = playerId === gameState.activePlayerId;
+
                 return (
-                  <article className="player-summary" key={playerId}>
+                  <article
+                    className={`player-summary ${isActivePlayer ? "player-summary-active" : ""}`}
+                    key={playerId}
+                  >
                     <h3>{playerId}</h3>
                     <p>
                       <strong>Life:</strong> {player.lifeTotal}
