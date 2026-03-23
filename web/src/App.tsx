@@ -211,6 +211,10 @@ function App() {
     [fetchStateAndLegalActions],
   );
 
+  const startNewGameAction =
+    legalActions.find((action) => action.kind.toLowerCase() === "start_new_game") ?? null;
+  const inGameActions = legalActions.filter((action) => action !== startNewGameAction);
+
   return (
     <main className="app-shell">
       <h1>TCG Frontend (React + TypeScript)</h1>
@@ -218,12 +222,21 @@ function App() {
       <p id="output">{status}</p>
 
       <section className="actions-panel" aria-live="polite">
+        {startNewGameAction ? (
+          <button
+            className="action-button start-new-game-button"
+            onClick={() => void handleActionClick(startNewGameAction)}
+            disabled={isApplyingAction}
+          >
+            {formatActionLabel(startNewGameAction, gameState?.cards ?? {})}
+          </button>
+        ) : null}
         <h2>
           Legal Actions ({actionsForPlayer ?? "-"} - {gameState?.phase ?? "-"})
         </h2>
-        {legalActions.length > 0 ? (
+        {inGameActions.length > 0 ? (
           <div className="actions-list">
-            {legalActions.map((action) => {
+            {inGameActions.map((action) => {
               const key = `${action.kind}:${action.actorId}:${action.cardId ?? "none"}:${action.targetId ?? "none"}`;
               return (
                 <button

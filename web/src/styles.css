@@ -33,6 +33,10 @@ body {
   font-size: 1.1rem;
 }
 
+.start-new-game-button {
+  margin-bottom: 0.75rem;
+}
+
 .actions-list {
   display: flex;
   flex-wrap: wrap;
