@@ -84,7 +84,7 @@ const formatCardName = (
   return `${card.name} (${card.manaCost}) (${powerToughness})${tappedSuffix}${summoningSickSuffix}`;
 };
 
-const getSortedCardIds = (
+const getBattlefieldCardIdsGroupedByType = (
   cardIds: string[],
   cards: Record<string, CardState>,
 ): string[] => {
@@ -99,16 +99,7 @@ const getSortedCardIds = (
     return 2;
   };
 
-  return [...cardIds].sort((cardIdA, cardIdB) => {
-    const rankDiff = cardTypeRank(cardIdA) - cardTypeRank(cardIdB);
-    if (rankDiff !== 0) {
-      return rankDiff;
-    }
-
-    const cardNameA = cards[cardIdA]?.name ?? cardIdA;
-    const cardNameB = cards[cardIdB]?.name ?? cardIdB;
-    return cardNameA.localeCompare(cardNameB);
-  });
+  return [...cardIds].sort((cardIdA, cardIdB) => cardTypeRank(cardIdA) - cardTypeRank(cardIdB));
 };
 
 const formatManaPool = (manaPool: Record<string, number>): string => {
@@ -286,7 +277,7 @@ function App() {
                       <strong>Hand:</strong>
                       {player.hand.length > 0 ? (
                         <ul>
-                          {getSortedCardIds(player.hand, gameState.cards).map((cardId) => (
+                          {player.hand.map((cardId) => (
                             <li key={`hand-${playerId}-${cardId}`}>
                               {formatCardName(cardId, gameState.cards)}
                             </li>
@@ -300,16 +291,18 @@ function App() {
                       <strong>Battlefield:</strong>
                       {player.battlefield.length > 0 ? (
                         <ul>
-                          {getSortedCardIds(player.battlefield, gameState.cards).map((cardId) => (
-                            <li key={`battlefield-${playerId}-${cardId}`}>
-                              {formatCardName(
-                                cardId,
-                                gameState.cards,
-                                tappedPermanents,
-                                summoningSickCreatures,
-                              )}
-                            </li>
-                          ))}
+                          {getBattlefieldCardIdsGroupedByType(player.battlefield, gameState.cards).map(
+                            (cardId) => (
+                              <li key={`battlefield-${playerId}-${cardId}`}>
+                                {formatCardName(
+                                  cardId,
+                                  gameState.cards,
+                                  tappedPermanents,
+                                  summoningSickCreatures,
+                                )}
+                              </li>
+                            ),
+                          )}
                         </ul>
                       ) : (
                         <p>None</p>
