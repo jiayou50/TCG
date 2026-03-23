@@ -41,7 +41,26 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.action-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
   margin-top: 0.75rem;
+}
+
+.action-group-row {
+  padding: 0.6rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #f9fafb;
+}
+
+.action-group-heading {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  color: #374151;
 }
 
 .action-button {

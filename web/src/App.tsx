@@ -45,6 +45,52 @@ type LegalActionsResponse = {
   actions: Action[];
 };
 
+type ActionGroup = {
+  key: string;
+  label: string;
+  actions: Action[];
+};
+
+const actionGroupDefinitions: {
+  key: string;
+  label: string;
+  matches: (action: Action, cards: Record<string, CardState>) => boolean;
+}[] = [
+  {
+    key: "turn-flow",
+    label: "Turn Flow",
+    matches: (action) => ["pass_priority", "pass_turn", "next_phase", "draw"].includes(action.kind),
+  },
+  {
+    key: "mana",
+    label: "Tap Lands for Mana",
+    matches: (action) => ["tap_land_for_mana", "tap_all_lands_for_mana"].includes(action.kind),
+  },
+  {
+    key: "play-creatures",
+    label: "Play Creatures",
+    matches: (action, cards) =>
+      action.kind === "play_card" &&
+      !!action.cardId &&
+      cards[action.cardId]?.cardType.toLowerCase() === "creature",
+  },
+  {
+    key: "play-lands",
+    label: "Play Lands",
+    matches: (action) => action.kind === "play_land",
+  },
+  {
+    key: "attacks",
+    label: "Declare Attacks",
+    matches: (action) => action.kind === "attack_with_creature",
+  },
+  {
+    key: "blocks",
+    label: "Declare Blocks",
+    matches: (action) => action.kind === "block_with_creature",
+  },
+];
+
 const formatActionLabel = (action: Action, cards: Record<string, CardState>): string => {
   const cardName = action.cardId ? cards[action.cardId]?.name ?? action.cardId : null;
   const targetName = action.targetId ? cards[action.targetId]?.name ?? action.targetId : null;
@@ -205,6 +251,32 @@ function App() {
   const startNewGameAction =
     legalActions.find((action) => action.kind.toLowerCase() === "start_new_game") ?? null;
   const inGameActions = legalActions.filter((action) => action !== startNewGameAction);
+  const cards = gameState?.cards ?? {};
+  const groupedActions = actionGroupDefinitions.reduce<ActionGroup[]>(
+    (groups, groupDefinition) => {
+      const matchingActions = inGameActions.filter((action) => groupDefinition.matches(action, cards));
+      if (matchingActions.length > 0) {
+        groups.push({
+          key: groupDefinition.key,
+          label: groupDefinition.label,
+          actions: matchingActions,
+        });
+      }
+      return groups;
+    },
+    [],
+  );
+
+  const uncategorizedActions = inGameActions.filter(
+    (action) => !actionGroupDefinitions.some((groupDefinition) => groupDefinition.matches(action, cards)),
+  );
+  if (uncategorizedActions.length > 0) {
+    groupedActions.push({
+      key: "other",
+      label: "Other Actions",
+      actions: uncategorizedActions,
+    });
+  }
 
   return (
     <main className="app-shell">
@@ -226,20 +298,27 @@ function App() {
           Legal Actions ({actionsForPlayer ?? "-"} - {gameState?.phase ?? "-"})
         </h2>
         {inGameActions.length > 0 ? (
-          <div className="actions-list">
-            {inGameActions.map((action) => {
-              const key = `${action.kind}:${action.actorId}:${action.cardId ?? "none"}:${action.targetId ?? "none"}`;
-              return (
-                <button
-                  className="action-button"
-                  key={key}
-                  onClick={() => void handleActionClick(action)}
-                  disabled={isApplyingAction}
-                >
-                  {formatActionLabel(action, gameState?.cards ?? {})}
-                </button>
-              );
-            })}
+          <div className="action-groups">
+            {groupedActions.map((group) => (
+              <div className="action-group-row" key={group.key}>
+                <h3 className="action-group-heading">{group.label}</h3>
+                <div className="actions-list">
+                  {group.actions.map((action) => {
+                    const key = `${action.kind}:${action.actorId}:${action.cardId ?? "none"}:${action.targetId ?? "none"}`;
+                    return (
+                      <button
+                        className="action-button"
+                        key={key}
+                        onClick={() => void handleActionClick(action)}
+                        disabled={isApplyingAction}
+                      >
+                        {formatActionLabel(action, gameState?.cards ?? {})}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           <p>No legal actions available.</p>
