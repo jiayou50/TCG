@@ -111,6 +111,31 @@ const getSortedCardIds = (
   });
 };
 
+const formatManaPool = (manaPool: Record<string, number>): string => {
+  const manaOrder = ["W", "U", "B", "R", "G", "C"];
+  const orderedSymbols: string[] = [];
+  const remainingSymbols = new Set(Object.keys(manaPool));
+
+  manaOrder.forEach((symbol) => {
+    const amount = manaPool[symbol] ?? 0;
+    if (amount > 0) {
+      orderedSymbols.push(symbol.repeat(amount));
+      remainingSymbols.delete(symbol);
+    }
+  });
+
+  [...remainingSymbols]
+    .sort((symbolA, symbolB) => symbolA.localeCompare(symbolB))
+    .forEach((symbol) => {
+      const amount = manaPool[symbol];
+      if (amount > 0) {
+        orderedSymbols.push(symbol.repeat(amount));
+      }
+    });
+
+  return orderedSymbols.length > 0 ? orderedSymbols.join("") : "Empty";
+};
+
 function App() {
   const [status, setStatus] = useState("Loading game state from backend...");
   const [gameState, setGameState] = useState<GameStateResponse | null>(null);
@@ -240,6 +265,9 @@ function App() {
                     </p>
                     <p>
                       <strong>Graveyard:</strong> {player.graveyard.length} cards
+                    </p>
+                    <p>
+                      <strong>Mana pool:</strong> {formatManaPool(player.manaPool)}
                     </p>
                     <div className="card-zone">
                       <strong>Hand:</strong>
