@@ -319,8 +319,8 @@ def apply_action(state: GameState, action: Action) -> None:
                 state.active_player_id = attacking_player_id
                 state.priority_player_id = attacking_player_id
                 state.event_log.append(f"priority passed to {attacking_player_id}")
+                next_phase(state)
                 return
-        next_phase(state)
         return
     if action.kind == "next_phase":
         next_phase(state)
