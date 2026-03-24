@@ -16,6 +16,7 @@ type CardState = {
   ownerId: string;
   manaCost: string;
   cardType: string;
+  oracleText?: string | null;
   power: number | null;
   toughness: number | null;
   producesMana: string[];
@@ -136,7 +137,11 @@ const formatCardName = (
   }
 
   const isCreature = card.cardType.toLowerCase() === "creature";
+  const isSorcery = card.cardType.toLowerCase() === "sorcery";
   if (!isCreature) {
+    if (isSorcery && card.oracleText) {
+      return `${card.name} — ${card.oracleText}`;
+    }
     return `${card.name}${tappedSuffix}`;
   }
 
