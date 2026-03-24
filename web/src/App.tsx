@@ -51,6 +51,11 @@ type ActionGroup = {
   actions: Action[];
 };
 
+type SorceryActionOption = {
+  action: Action;
+  label: string;
+};
+
 const actionGroupDefinitions: {
   key: string;
   label: string;
@@ -105,6 +110,16 @@ const formatActionLabel = (action: Action, cards: Record<string, CardState>): st
   }
 
   return readableKind;
+};
+
+const getSorceryActionKey = (action: Action): string => `${action.actorId}:${action.cardId ?? "none"}`;
+
+const formatTargetLabel = (action: Action, cards: Record<string, CardState>): string => {
+  if (!action.targetId) {
+    return "No target";
+  }
+
+  return cards[action.targetId]?.name ?? action.targetId;
 };
 
 const formatCardName = (
@@ -179,6 +194,7 @@ function App() {
   const [legalActions, setLegalActions] = useState<Action[]>([]);
   const [actionsForPlayer, setActionsForPlayer] = useState<string | null>(null);
   const [isApplyingAction, setIsApplyingAction] = useState(false);
+  const [selectedSorceryTargets, setSelectedSorceryTargets] = useState<Record<string, string>>({});
 
   const fetchStateAndLegalActions = useCallback(async () => {
     const gameStateResponse = await fetch("/api/game-state");
@@ -252,9 +268,55 @@ function App() {
     legalActions.find((action) => action.kind.toLowerCase() === "start_new_game") ?? null;
   const inGameActions = legalActions.filter((action) => action !== startNewGameAction);
   const cards = gameState?.cards ?? {};
+  const sorceryPlayActions = inGameActions.filter(
+    (action) =>
+      action.kind === "play_card" &&
+      !!action.cardId &&
+      cards[action.cardId]?.cardType.toLowerCase() === "sorcery",
+  );
+  const sorceryActionOptionsByCard = sorceryPlayActions.reduce<Record<string, SorceryActionOption[]>>(
+    (optionsByCard, action) => {
+      const key = getSorceryActionKey(action);
+      const nextOption: SorceryActionOption = {
+        action,
+        label: formatTargetLabel(action, cards),
+      };
+      if (!optionsByCard[key]) {
+        optionsByCard[key] = [nextOption];
+      } else {
+        optionsByCard[key].push(nextOption);
+      }
+      return optionsByCard;
+    },
+    {},
+  );
+
+  useEffect(() => {
+    setSelectedSorceryTargets((currentSelection) => {
+      const nextSelection: Record<string, string> = {};
+      Object.entries(sorceryActionOptionsByCard).forEach(([cardKey, options]) => {
+        const priorSelection = currentSelection[cardKey];
+        const stillExists = options.some((option) => option.action.targetId === priorSelection);
+        nextSelection[cardKey] = stillExists ? priorSelection : options[0].action.targetId ?? "";
+      });
+      const sameKeys =
+        Object.keys(currentSelection).length === Object.keys(nextSelection).length &&
+        Object.keys(currentSelection).every((key) => key in nextSelection);
+      const sameValues =
+        sameKeys &&
+        Object.entries(currentSelection).every(([key, value]) => nextSelection[key] === value);
+      return sameValues ? currentSelection : nextSelection;
+    });
+  }, [sorceryActionOptionsByCard]);
+
+  const inGameActionsWithoutSorceries = inGameActions.filter(
+    (action) => !sorceryPlayActions.includes(action),
+  );
   const groupedActions = actionGroupDefinitions.reduce<ActionGroup[]>(
     (groups, groupDefinition) => {
-      const matchingActions = inGameActions.filter((action) => groupDefinition.matches(action, cards));
+      const matchingActions = inGameActionsWithoutSorceries.filter((action) =>
+        groupDefinition.matches(action, cards),
+      );
       if (matchingActions.length > 0) {
         groups.push({
           key: groupDefinition.key,
@@ -267,7 +329,7 @@ function App() {
     [],
   );
 
-  const uncategorizedActions = inGameActions.filter(
+  const uncategorizedActions = inGameActionsWithoutSorceries.filter(
     (action) => !actionGroupDefinitions.some((groupDefinition) => groupDefinition.matches(action, cards)),
   );
   if (uncategorizedActions.length > 0) {
@@ -281,7 +343,7 @@ function App() {
   return (
     <main className="app-shell">
       <h1>TCG Frontend (React + TypeScript)</h1>
-      <p>Click an action button to send it to the backend and refresh the game.</p>
+      <p>Use action buttons or sorcery target dropdowns to send actions to the backend.</p>
       <p id="output">{status}</p>
 
       <section className="actions-panel" aria-live="polite">
@@ -299,6 +361,54 @@ function App() {
         </h2>
         {inGameActions.length > 0 ? (
           <div className="action-groups">
+            {Object.entries(sorceryActionOptionsByCard).map(([cardKey, options]) => {
+              const selectedTargetId = selectedSorceryTargets[cardKey];
+              const selectedAction =
+                options.find((option) => option.action.targetId === selectedTargetId)?.action ??
+                options[0]?.action;
+              if (!selectedAction?.cardId) {
+                return null;
+              }
+
+              const cardName = cards[selectedAction.cardId]?.name ?? selectedAction.cardId;
+              return (
+                <div className="action-group-row" key={`sorcery-${cardKey}`}>
+                  <h3 className="action-group-heading">Play Sorceries</h3>
+                  <div className="sorcery-action-row">
+                    <label htmlFor={`sorcery-target-${cardKey}`}>{cardName}</label>
+                    <select
+                      id={`sorcery-target-${cardKey}`}
+                      className="sorcery-target-select"
+                      value={selectedTargetId ?? ""}
+                      disabled={isApplyingAction}
+                      onChange={(event) => {
+                        const { value } = event.target;
+                        setSelectedSorceryTargets((currentSelection) => ({
+                          ...currentSelection,
+                          [cardKey]: value,
+                        }));
+                      }}
+                    >
+                      {options.map((option) => (
+                        <option
+                          key={`${option.action.targetId ?? "none"}`}
+                          value={option.action.targetId ?? ""}
+                        >
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      className="action-button"
+                      onClick={() => selectedAction && void handleActionClick(selectedAction)}
+                      disabled={isApplyingAction || !selectedAction}
+                    >
+                      Confirm
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
             {groupedActions.map((group) => (
               <div className="action-group-row" key={group.key}>
                 <h3 className="action-group-heading">{group.label}</h3>
