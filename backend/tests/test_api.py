@@ -29,33 +29,36 @@ class TestApi(unittest.TestCase):
         self.assertIn("players", payload)
         self.assertIn("cards", payload)
         self.assertIn("p1", payload["players"])
-        self.assertEqual(len(payload["players"]["p1"]["library"]), 18)
-        self.assertEqual(len(payload["players"]["p2"]["library"]), 18)
+        self.assertEqual(len(payload["players"]["p1"]["library"]), 19)
+        self.assertEqual(len(payload["players"]["p2"]["library"]), 19)
         self.assertEqual(len(payload["players"]["p1"]["hand"]), 5)
         self.assertEqual(len(payload["players"]["p2"]["hand"]), 5)
         self.assertEqual(payload["players"]["p1"]["summoningSickCreatures"], [])
         self.assertEqual(payload["players"]["p2"]["summoningSickCreatures"], [])
 
-        def _count_types(card_ids: list[str]) -> tuple[int, int]:
+        def _count_types(card_ids: list[str]) -> tuple[int, int, int]:
             lands = 0
             creatures = 0
+            sorceries = 0
             for card_id in card_ids:
                 card_type = payload["cards"][card_id]["cardType"]
                 if card_type == "land":
                     lands += 1
                 if card_type == "creature":
                     creatures += 1
-            return lands, creatures
+                if card_type == "sorcery":
+                    sorceries += 1
+            return lands, creatures, sorceries
 
         p1_cards = payload["players"]["p1"]["library"] + payload["players"]["p1"]["hand"]
         p2_cards = payload["players"]["p2"]["library"] + payload["players"]["p2"]["hand"]
-        self.assertEqual(len(p1_cards), 23)
-        self.assertEqual(len(p2_cards), 23)
+        self.assertEqual(len(p1_cards), 24)
+        self.assertEqual(len(p2_cards), 24)
 
-        p1_lands, p1_creatures = _count_types(p1_cards)
-        p2_lands, p2_creatures = _count_types(p2_cards)
-        self.assertEqual((p1_lands, p1_creatures), (9, 14))
-        self.assertEqual((p2_lands, p2_creatures), (9, 14))
+        p1_lands, p1_creatures, p1_sorceries = _count_types(p1_cards)
+        p2_lands, p2_creatures, p2_sorceries = _count_types(p2_cards)
+        self.assertEqual((p1_lands, p1_creatures, p1_sorceries), (10, 12, 2))
+        self.assertEqual((p2_lands, p2_creatures, p2_sorceries), (10, 12, 2))
 
         p1_names = {payload["cards"][card_id]["name"] for card_id in p1_cards}
         p2_names = {payload["cards"][card_id]["name"] for card_id in p2_cards}
@@ -72,8 +75,8 @@ class TestApi(unittest.TestCase):
             for card_id in p2_cards
             if payload["cards"][card_id]["cardType"] == "land"
         }
-        self.assertEqual(p1_land_colors, {"G", "W"})
-        self.assertEqual(p2_land_colors, {"U", "B"})
+        self.assertEqual(p1_land_colors, {"G", "W", "R"})
+        self.assertEqual(p2_land_colors, {"U", "B", "R"})
 
         def _creature_cost_colors(card_ids: list[str]) -> set[str]:
             colors = set()

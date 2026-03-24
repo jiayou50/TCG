@@ -58,6 +58,34 @@ def make_state() -> GameState:
             power=1,
             toughness=1,
         ),
+        "c4": Card(
+            id="c4",
+            name="Test Burn",
+            owner_id="p1",
+            mana_cost="1R",
+            card_type=CardType.SORCERY,
+            effect_kind="damage_target_creature",
+            effect_value=1,
+            oracle_text="Deal 1 damage to target creature.",
+        ),
+        "c5": Card(
+            id="c5",
+            name="Test Removal",
+            owner_id="p1",
+            mana_cost="1G",
+            card_type=CardType.SORCERY,
+            effect_kind="destroy_target_creature",
+            oracle_text="Destroy target creature.",
+        ),
+        "c6": Card(
+            id="c6",
+            name="Test Four",
+            owner_id="p2",
+            mana_cost="2R",
+            card_type=CardType.CREATURE,
+            power=2,
+            toughness=2,
+        ),
         "l1": Card(
             id="l1",
             name="Forest",
@@ -145,6 +173,18 @@ class TestGame(unittest.TestCase):
                 card_type=CardType.LAND,
             )
 
+    def test_sorcery_requires_oracle_text(self) -> None:
+        with self.assertRaises(ValueError):
+            Card(
+                id="bad_sorcery",
+                name="Bad Sorcery",
+                owner_id="p1",
+                mana_cost="1R",
+                card_type=CardType.SORCERY,
+                effect_kind="damage_target_creature",
+                effect_value=2,
+            )
+
     def test_sample_cards_include_five_basic_lands(self) -> None:
         basics = {"c_plains", "c_island", "c_swamp", "c_mountain", "c_forest"}
         self.assertTrue(basics.issubset(set(SAMPLE_CARDS.keys())))
@@ -223,6 +263,82 @@ class TestGame(unittest.TestCase):
         self.assertNotIn("c1", player.hand)
         self.assertEqual(sum(player.mana_pool.values()), 0)
 
+    def test_sorcery_can_only_be_played_in_own_main_phase(self) -> None:
+        state = make_state()
+        p1 = state.players["p1"]
+        p1.hand.append("c4")
+        p1.mana_pool[ManaColor.GREEN] = 1
+        p1.mana_pool[ManaColor.RED] = 1
+        state.players["p2"].battlefield.append("c3")
+
+        state.phase = Phase.COMBAT
+        with self.assertRaises(ValueError):
+            play_card(state, "p1", "c4", target_id="c3")
+
+        state.phase = Phase.PRECOMBAT_MAIN
+        state.active_player_id = "p2"
+        with self.assertRaises(ValueError):
+            play_card(state, "p1", "c4", target_id="c3")
+
+    def test_burn_sorcery_tracks_damage_and_turn_end_clears_it(self) -> None:
+        state = make_state()
+        p1 = state.players["p1"]
+        p2 = state.players["p2"]
+        state.phase = Phase.PRECOMBAT_MAIN
+        p1.hand.append("c4")
+        p2.battlefield.append("c6")
+        p1.mana_pool[ManaColor.GREEN] = 1
+        p1.mana_pool[ManaColor.RED] = 1
+
+        play_card(state, "p1", "c4", target_id="c6")
+
+        self.assertEqual(state.creature_damage.get("c6"), 1)
+        self.assertIn("c4", p1.graveyard)
+
+        apply_action(state, Action(kind="pass_turn", actor_id="p1"))
+        self.assertEqual(state.creature_damage, {})
+
+    def test_removal_sorcery_moves_target_creature_to_graveyard(self) -> None:
+        state = make_state()
+        p1 = state.players["p1"]
+        p2 = state.players["p2"]
+        state.phase = Phase.PRECOMBAT_MAIN
+        p1.hand.append("c5")
+        p2.battlefield.append("c3")
+        p1.mana_pool[ManaColor.GREEN] = 2
+
+        play_card(state, "p1", "c5", target_id="c3")
+
+        self.assertNotIn("c3", p2.battlefield)
+        self.assertIn("c3", p2.graveyard)
+        self.assertIn("c5", p1.graveyard)
+
+    def test_combat_damage_accumulates_with_sorcery_damage(self) -> None:
+        state = make_state()
+        p1 = state.players["p1"]
+        p2 = state.players["p2"]
+        state.phase = Phase.PRECOMBAT_MAIN
+        p1.hand.append("c4")
+        p2.battlefield.append("c6")
+        p1.mana_pool[ManaColor.GREEN] = 1
+        p1.mana_pool[ManaColor.RED] = 1
+
+        play_card(state, "p1", "c4", target_id="c6")
+        self.assertEqual(state.creature_damage.get("c6"), 1)
+
+        p1.battlefield.append("c1")
+        state.phase = Phase.COMBAT
+        state.active_player_id = "p2"
+        state.priority_player_id = "p2"
+        state.players["p2"].summoning_sick_creatures.clear()
+        state.players["p1"].summoning_sick_creatures.clear()
+        apply_action(state, Action(kind="attack_with_creature", actor_id="p2", card_id="c6"))
+        apply_action(state, Action(kind="pass_priority", actor_id="p2"))
+        apply_action(state, Action(kind="block_with_creature", actor_id="p1", card_id="c1", target_id="c6"))
+        apply_action(state, Action(kind="pass_priority", actor_id="p1"))
+
+        self.assertIn("c6", p2.graveyard)
+
     def test_combat_actions_attack_and_block(self) -> None:
         state = make_state()
         p1 = state.players["p1"]
@@ -300,7 +416,6 @@ class TestGame(unittest.TestCase):
         apply_action(state, Action(kind="attack_with_creature", actor_id="p1", card_id="c1"))
         apply_action(state, Action(kind="pass_priority", actor_id="p1"))
         apply_action(state, Action(kind="pass_priority", actor_id="p2"))
-        next_phase(state)
 
         self.assertEqual(p2.life_total, 18)
         self.assertEqual(state.phase, Phase.POSTCOMBAT_MAIN)
@@ -334,12 +449,20 @@ class TestGame(unittest.TestCase):
         p2 = state.players["p2"]
         state.phase = Phase.PRECOMBAT_MAIN
         p1.hand.append("c1")
+        p1.hand.append("c4")
         p1.battlefield.append("l1")
+        p2.battlefield.append("c3")
         p1.mana_pool[ManaColor.GREEN] = 1
         p1.mana_pool[ManaColor.RED] = 1
 
         legal_main = {action.kind for action in get_legal_actions(state, "p1")}
         self.assertTrue({"play_land", "play_card", "tap_land_for_mana", "pass_priority"}.issubset(legal_main))
+        self.assertTrue(
+            any(
+                action.kind == "play_card" and action.card_id == "c4" and action.target_id == "c3"
+                for action in get_legal_actions(state, "p1")
+            )
+        )
 
         p1.battlefield.append("c1")
         p2.battlefield.append("c3")

@@ -26,6 +26,7 @@ class Phase(str, Enum):
 class CardType(str, Enum):
     CREATURE = "creature"
     LAND = "land"
+    SORCERY = "sorcery"
 
 
 class ManaColor(str, Enum):
@@ -47,6 +48,9 @@ class Card:
     power: int | None = None
     toughness: int | None = None
     produces_mana: tuple[ManaColor, ...] = ()
+    effect_kind: str | None = None
+    effect_value: int | None = None
+    oracle_text: str | None = None
 
     def __post_init__(self) -> None:
         if self.card_type == CardType.CREATURE:
@@ -57,6 +61,21 @@ class Card:
                 raise ValueError("Land cards must not have a mana cost")
             if not self.produces_mana:
                 raise ValueError("Land cards must produce at least one mana color")
+            if self.effect_kind is not None or self.effect_value is not None:
+                raise ValueError("Land cards cannot have spell effects")
+        if self.card_type == CardType.CREATURE and (
+            self.effect_kind is not None or self.effect_value is not None
+        ):
+            raise ValueError("Creature cards cannot have spell effects")
+        if self.card_type == CardType.SORCERY:
+            if self.power is not None or self.toughness is not None:
+                raise ValueError("Sorcery cards cannot have power or toughness")
+            if self.produces_mana:
+                raise ValueError("Sorcery cards cannot produce mana")
+            if self.effect_kind is None:
+                raise ValueError("Sorcery cards must define an effect kind")
+            if not self.oracle_text:
+                raise ValueError("Sorcery cards must define oracle text")
 
 
 @dataclass(slots=True)
@@ -88,3 +107,4 @@ class GameState:
     declared_blocks: dict[str, str] = field(default_factory=dict)
     event_log: list[str] = field(default_factory=list)
     has_drawn_this_turn: bool = False
+    creature_damage: dict[str, int] = field(default_factory=dict)

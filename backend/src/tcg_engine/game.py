@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .models import CardType, GameState, ManaColor, Phase, PlayerState, Zone
+from .models import Card, CardType, GameState, ManaColor, Phase, PlayerState, Zone
 
 
 @dataclass(slots=True, frozen=True)
@@ -48,6 +48,7 @@ def move_card(state: GameState, player_id: str, card_id: str, from_zone: Zone, t
     if to_zone != Zone.BATTLEFIELD:
         player.tapped_permanents.discard(card_id)
         player.summoning_sick_creatures.discard(card_id)
+        state.creature_damage.pop(card_id, None)
     elif state.cards[card_id].card_type == CardType.CREATURE:
         player.summoning_sick_creatures.add(card_id)
     state.event_log.append(f"{card_id}: {from_zone.value} -> {to_zone.value}")
@@ -108,7 +109,7 @@ def tap_all_lands_for_mana(state: GameState, player_id: str) -> None:
     state.event_log.append(f"{player_id} tapped all untapped lands for mana")
 
 
-def play_card(state: GameState, player_id: str, card_id: str) -> None:
+def play_card(state: GameState, player_id: str, card_id: str, target_id: str | None = None) -> None:
     player = state.players[player_id]
     if player_id != state.active_player_id:
         raise ValueError("Only the active player can play a card")
@@ -124,8 +125,16 @@ def play_card(state: GameState, player_id: str, card_id: str) -> None:
         raise ValueError("Insufficient mana to play card")
 
     spend_mana_cost(player, card.mana_cost)
-    move_card(state, player_id, card_id, Zone.HAND, Zone.BATTLEFIELD)
-    state.event_log.append(f"{player_id} played card {card_id}")
+    if card.card_type == CardType.CREATURE:
+        move_card(state, player_id, card_id, Zone.HAND, Zone.BATTLEFIELD)
+        state.event_log.append(f"{player_id} played card {card_id}")
+        return
+    if card.card_type == CardType.SORCERY:
+        _resolve_sorcery(state, player_id, card, target_id)
+        move_card(state, player_id, card_id, Zone.HAND, Zone.GRAVEYARD)
+        state.event_log.append(f"{player_id} cast sorcery {card_id}")
+        return
+    raise ValueError(f"Unsupported nonland card type: {card.card_type}")
 
 
 def attack_with_creature(state: GameState, player_id: str, card_id: str) -> None:
@@ -223,7 +232,6 @@ def resolve_combat_damage(state: GameState) -> None:
     if state.phase != Phase.COMBAT:
         raise ValueError("Combat damage can only be resolved during combat")
 
-    combat_damage: dict[str, int] = {}
     blockers_by_attacker: dict[str, list[str]] = {}
     for blocker_id, attacker_id in state.declared_blocks.items():
         blockers_by_attacker.setdefault(attacker_id, []).append(blocker_id)
@@ -242,32 +250,17 @@ def resolve_combat_damage(state: GameState) -> None:
             continue
 
         primary_blocker_id = blockers[0]
-        primary_blocker = state.cards[primary_blocker_id]
-        combat_damage[primary_blocker_id] = combat_damage.get(primary_blocker_id, 0) + (attacker.power or 0)
+        deal_damage_to_creature(state, primary_blocker_id, attacker.power or 0, source_id=attacker_id)
         state.event_log.append(
             f"{attacker_id} dealt {attacker.power} damage to {primary_blocker_id}"
         )
 
         for blocker_id in blockers:
             blocker = state.cards[blocker_id]
-            combat_damage[attacker_id] = combat_damage.get(attacker_id, 0) + (blocker.power or 0)
+            deal_damage_to_creature(state, attacker_id, blocker.power or 0, source_id=blocker_id)
             state.event_log.append(
                 f"{blocker_id} dealt {blocker.power} damage to {attacker_id}"
             )
-
-    for creature_id, damage in combat_damage.items():
-        creature = state.cards[creature_id]
-        if creature.card_type != CardType.CREATURE:
-            continue
-        if damage < (creature.toughness or 0):
-            continue
-
-        owner_id = creature.owner_id
-        if creature_id not in state.players[owner_id].battlefield:
-            continue
-
-        move_card(state, owner_id, creature_id, Zone.BATTLEFIELD, Zone.GRAVEYARD)
-        state.event_log.append(f"{creature_id} was destroyed in combat")
 
 
 def next_phase(state: GameState) -> None:
@@ -331,7 +324,7 @@ def apply_action(state: GameState, action: Action) -> None:
         play_land(state, action.actor_id, action.card_id)
         return
     if action.kind == "play_card" and action.card_id:
-        play_card(state, action.actor_id, action.card_id)
+        play_card(state, action.actor_id, action.card_id, action.target_id)
         return
     if action.kind == "attack_with_creature" and action.card_id:
         attack_with_creature(state, action.actor_id, action.card_id)
@@ -374,6 +367,12 @@ def get_legal_actions(state: GameState, player_id: str) -> list[Action]:
             card = state.cards[card_id]
             if card.card_type == CardType.CREATURE and can_pay_mana_cost(player, card.mana_cost):
                 actions.append(Action(kind="play_card", actor_id=player_id, card_id=card_id))
+            if card.card_type == CardType.SORCERY and can_pay_mana_cost(player, card.mana_cost):
+                for target_id in _battlefield_creature_ids(state):
+                    if _is_legal_sorcery_target(state, card, target_id):
+                        actions.append(
+                            Action(kind="play_card", actor_id=player_id, card_id=card_id, target_id=target_id)
+                        )
 
     if state.phase == Phase.COMBAT:
         attacking_player_id = _attacking_player_id(state) or state.active_player_id
@@ -426,6 +425,7 @@ def _next_turn(state: GameState) -> None:
     state.has_drawn_this_turn = False
     state.declared_attackers.clear()
     state.declared_blocks.clear()
+    state.creature_damage.clear()
 
     for player in state.players.values():
         clear_mana_pool(player)
@@ -483,3 +483,71 @@ def _parse_mana_cost(mana_cost: str) -> tuple[dict[ManaColor, int], int]:
         generic += int(generic_buffer)
 
     return required, generic
+
+
+def deal_damage_to_creature(
+    state: GameState, creature_id: str, amount: int, *, source_id: str | None = None
+) -> None:
+    if amount <= 0:
+        return
+    creature = state.cards[creature_id]
+    if creature.card_type != CardType.CREATURE:
+        raise ValueError("Damage can only be dealt to creatures")
+
+    owner_id = creature.owner_id
+    if creature_id not in state.players[owner_id].battlefield:
+        raise ValueError("Target creature must be on the battlefield")
+
+    state.creature_damage[creature_id] = state.creature_damage.get(creature_id, 0) + amount
+    total = state.creature_damage[creature_id]
+    if source_id:
+        state.event_log.append(f"{source_id} dealt {amount} damage to {creature_id} ({total} total)")
+
+    if total >= (creature.toughness or 0):
+        move_card(state, owner_id, creature_id, Zone.BATTLEFIELD, Zone.GRAVEYARD)
+        state.creature_damage.pop(creature_id, None)
+        state.event_log.append(f"{creature_id} was destroyed")
+
+
+def _resolve_sorcery(state: GameState, player_id: str, card: Card, target_id: str | None) -> None:
+    del player_id
+    if target_id is None:
+        raise ValueError("Sorcery requires a target")
+    if not _is_legal_sorcery_target(state, card, target_id):
+        raise ValueError("Invalid sorcery target")
+
+    if card.effect_kind == "destroy_target_creature":
+        target_card = state.cards[target_id]
+        move_card(state, target_card.owner_id, target_id, Zone.BATTLEFIELD, Zone.GRAVEYARD)
+        state.creature_damage.pop(target_id, None)
+        state.event_log.append(f"{card.id} destroyed {target_id}")
+        return
+    if card.effect_kind == "damage_target_creature":
+        if card.effect_value is None:
+            raise ValueError("Damage sorcery must define effect value")
+        deal_damage_to_creature(state, target_id, card.effect_value, source_id=card.id)
+        return
+    raise ValueError(f"Unsupported sorcery effect: {card.effect_kind}")
+
+
+def _is_legal_sorcery_target(state: GameState, card: Card, target_id: str) -> bool:
+    if target_id not in state.cards:
+        return False
+    target_card = state.cards[target_id]
+    if target_card.card_type != CardType.CREATURE:
+        return False
+    owner_id = target_card.owner_id
+    if target_id not in state.players[owner_id].battlefield:
+        return False
+    if card.effect_kind in {"destroy_target_creature", "damage_target_creature"}:
+        return True
+    return False
+
+
+def _battlefield_creature_ids(state: GameState) -> list[str]:
+    return [
+        card_id
+        for player in state.players.values()
+        for card_id in player.battlefield
+        if state.cards[card_id].card_type == CardType.CREATURE
+    ]

@@ -89,6 +89,7 @@ def _serialize_state(state: GameState) -> dict[str, object]:
         "priorityPlayerId": state.priority_player_id,
         "declaredAttackers": state.declared_attackers,
         "declaredBlocks": state.declared_blocks,
+        "creatureDamage": state.creature_damage,
         "eventLog": state.event_log,
         "players": {
             player_id: {
@@ -112,6 +113,9 @@ def _serialize_state(state: GameState) -> dict[str, object]:
                 "power": card.power,
                 "toughness": card.toughness,
                 "producesMana": [color.value for color in card.produces_mana],
+                "effectKind": card.effect_kind,
+                "effectValue": card.effect_value,
+                "oracleText": card.oracle_text,
             }
             for card_id, card in state.cards.items()
         },
