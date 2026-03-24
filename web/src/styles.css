@@ -70,9 +70,28 @@ body {
   align-items: center;
 }
 
+.declare-block-row {
+  display: grid;
+  grid-template-columns: auto minmax(12rem, 1fr) auto minmax(12rem, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+@media (max-width: 900px) {
+  .declare-block-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .sorcery-action-row label {
   font-size: 0.9rem;
   color: #1f2937;
+}
+
+.declare-block-row label {
+  font-size: 0.85rem;
+  color: #374151;
+  font-weight: 600;
 }
 
 .sorcery-target-select {
@@ -81,6 +100,17 @@ body {
   background: #ffffff;
   padding: 0.45rem 0.6rem;
   min-width: 12rem;
+}
+
+.declare-block-button {
+  white-space: nowrap;
+  border-color: #2563eb;
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.declare-block-button:hover:enabled {
+  background: #dbeafe;
 }
 
 .action-button {

@@ -89,11 +89,6 @@ const actionGroupDefinitions: {
     label: "Declare Attacks",
     matches: (action) => action.kind === "attack_with_creature",
   },
-  {
-    key: "blocks",
-    label: "Declare Blocks",
-    matches: (action) => action.kind === "block_with_creature",
-  },
 ];
 
 const formatActionLabel = (action: Action, cards: Record<string, CardState>): string => {
@@ -195,6 +190,8 @@ function App() {
   const [actionsForPlayer, setActionsForPlayer] = useState<string | null>(null);
   const [isApplyingAction, setIsApplyingAction] = useState(false);
   const [selectedSorceryTargets, setSelectedSorceryTargets] = useState<Record<string, string>>({});
+  const [selectedBlockerId, setSelectedBlockerId] = useState("");
+  const [selectedAttackerId, setSelectedAttackerId] = useState("");
 
   const fetchStateAndLegalActions = useCallback(async () => {
     const gameStateResponse = await fetch("/api/game-state");
@@ -312,9 +309,51 @@ function App() {
   const inGameActionsWithoutSorceries = inGameActions.filter(
     (action) => !sorceryPlayActions.includes(action),
   );
+  const blockActions = inGameActionsWithoutSorceries.filter(
+    (action) => action.kind === "block_with_creature" && !!action.cardId && !!action.targetId,
+  );
+  const blockerOptions = [...new Set(blockActions.map((action) => action.cardId as string))];
+
+  useEffect(() => {
+    setSelectedBlockerId((currentSelection) => {
+      if (blockerOptions.length === 0) {
+        return "";
+      }
+      if (blockerOptions.includes(currentSelection)) {
+        return currentSelection;
+      }
+      return blockerOptions[0];
+    });
+  }, [blockerOptions]);
+
+  const attackerOptionsForSelectedBlocker = blockActions
+    .filter((action) => action.cardId === selectedBlockerId)
+    .map((action) => action.targetId as string);
+  const uniqueAttackerOptionsForSelectedBlocker = [...new Set(attackerOptionsForSelectedBlocker)];
+
+  useEffect(() => {
+    setSelectedAttackerId((currentSelection) => {
+      if (uniqueAttackerOptionsForSelectedBlocker.length === 0) {
+        return "";
+      }
+      if (uniqueAttackerOptionsForSelectedBlocker.includes(currentSelection)) {
+        return currentSelection;
+      }
+      return uniqueAttackerOptionsForSelectedBlocker[0];
+    });
+  }, [uniqueAttackerOptionsForSelectedBlocker]);
+
+  const selectedBlockAction =
+    blockActions.find(
+      (action) => action.cardId === selectedBlockerId && action.targetId === selectedAttackerId,
+    ) ?? null;
+
+  const inGameActionsWithoutSorceriesOrBlocks = inGameActionsWithoutSorceries.filter(
+    (action) => action.kind !== "block_with_creature",
+  );
   const groupedActions = actionGroupDefinitions.reduce<ActionGroup[]>(
     (groups, groupDefinition) => {
-      const matchingActions = inGameActionsWithoutSorceries.filter((action) =>
+      const matchingActions = inGameActionsWithoutSorceriesOrBlocks.filter((action) =>
         groupDefinition.matches(action, cards),
       );
       if (matchingActions.length > 0) {
@@ -330,13 +369,16 @@ function App() {
   );
 
   const uncategorizedActions = inGameActionsWithoutSorceries.filter(
+    (action) => action.kind !== "block_with_creature",
+  );
+  const trulyUncategorizedActions = uncategorizedActions.filter(
     (action) => !actionGroupDefinitions.some((groupDefinition) => groupDefinition.matches(action, cards)),
   );
-  if (uncategorizedActions.length > 0) {
+  if (trulyUncategorizedActions.length > 0) {
     groupedActions.push({
       key: "other",
       label: "Other Actions",
-      actions: uncategorizedActions,
+      actions: trulyUncategorizedActions,
     });
   }
 
@@ -409,6 +451,52 @@ function App() {
                 </div>
               );
             })}
+            {blockActions.length > 0 ? (
+              <div className="action-group-row">
+                <h3 className="action-group-heading">Declare Blocks</h3>
+                <div className="declare-block-row">
+                  <label htmlFor="blocker-select">Blocker</label>
+                  <select
+                    id="blocker-select"
+                    className="sorcery-target-select"
+                    value={selectedBlockerId}
+                    disabled={isApplyingAction || blockerOptions.length === 0}
+                    onChange={(event) => {
+                      setSelectedBlockerId(event.target.value);
+                    }}
+                  >
+                    {blockerOptions.map((blockerId) => (
+                      <option key={blockerId} value={blockerId}>
+                        {formatCardName(blockerId, cards)}
+                      </option>
+                    ))}
+                  </select>
+                  <label htmlFor="attacker-select">Attacker</label>
+                  <select
+                    id="attacker-select"
+                    className="sorcery-target-select"
+                    value={selectedAttackerId}
+                    disabled={isApplyingAction || uniqueAttackerOptionsForSelectedBlocker.length === 0}
+                    onChange={(event) => {
+                      setSelectedAttackerId(event.target.value);
+                    }}
+                  >
+                    {uniqueAttackerOptionsForSelectedBlocker.map((attackerId) => (
+                      <option key={attackerId} value={attackerId}>
+                        {formatCardName(attackerId, cards)}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    className="action-button declare-block-button"
+                    onClick={() => selectedBlockAction && void handleActionClick(selectedBlockAction)}
+                    disabled={isApplyingAction || !selectedBlockAction}
+                  >
+                    Declare Blocker
+                  </button>
+                </div>
+              </div>
+            ) : null}
             {groupedActions.map((group) => (
               <div className="action-group-row" key={group.key}>
                 <h3 className="action-group-heading">{group.label}</h3>
