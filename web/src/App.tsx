@@ -134,8 +134,10 @@ const formatCardName = (
   const isCreature = card.cardType.toLowerCase() === "creature";
   const isSorcery = card.cardType.toLowerCase() === "sorcery";
   if (!isCreature) {
-    if (isSorcery && card.oracleText) {
-      return `${card.name} — ${card.oracleText}`;
+    if (isSorcery) {
+      const manaCostSuffix = card.manaCost ? ` (${card.manaCost})` : "";
+      const oracleTextSuffix = card.oracleText ? ` — ${card.oracleText}` : "";
+      return `${card.name}${manaCostSuffix}${oracleTextSuffix}${tappedSuffix}`;
     }
     return `${card.name}${tappedSuffix}`;
   }
@@ -417,7 +419,10 @@ function App() {
                 return null;
               }
 
-              const cardName = cards[selectedAction.cardId]?.name ?? selectedAction.cardId;
+              const selectedCard = cards[selectedAction.cardId];
+              const cardName = selectedCard
+                ? `${selectedCard.name}${selectedCard.manaCost ? ` (${selectedCard.manaCost})` : ""}`
+                : selectedAction.cardId;
               return (
                 <div className="action-group-row" key={`sorcery-${cardKey}`}>
                   <h3 className="action-group-heading">Play Sorceries</h3>
